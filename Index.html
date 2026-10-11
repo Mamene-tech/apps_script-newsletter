@@ -1,0 +1,1835 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Newsletter Visual Studio</title>
+  <style>
+    :root {
+      --primary: #298DC0;
+      --primary-hover: #21739c;
+      --bg: #edf2f7;
+      --card-bg: #ffffff;
+      --text: #2d3748;
+      --text-muted: #718096;
+      --border: #d2dbe5;
+      --danger: #e53e3e;
+      --success: #38a169;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      line-height: 1.5;
+    }
+
+    /* Top Sticky Action Bar */
+    .top-bar {
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .brand {
+      font-weight: 700;
+      font-size: 17px;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-badges {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+    }
+    .badge {
+      background: #edf2f7;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .badge.quota { background: #e6fffa; color: #234e52; border: 1px solid #b2f5ea; }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: var(--primary); color: #ffffff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary { background: #edf2f7; color: #4a5568; }
+    .btn-secondary:hover { background: #e2e8f0; }
+    .btn-danger { background: var(--danger); color: #ffffff; }
+    .btn-sm { padding: 3px 8px; font-size: 11px; }
+
+    /* Simulation Banner */
+    .banner {
+      max-width: 840px;
+      margin: 12px auto 0 auto;
+      background: #fffaf0;
+      border: 1px solid #feebc8;
+      color: #7b341e;
+      padding: 10px 16px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    /* Metadata Panel Above Editor */
+    .editor-control-panel {
+      max-width: 840px;
+      margin: 16px auto 10px auto;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .meta-fields-group {
+      display: flex;
+      gap: 16px;
+      flex: 1;
+      min-width: 320px;
+    }
+    .meta-field {
+      flex: 1;
+    }
+    .meta-field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+    }
+    .meta-field input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .meta-field input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* Device Preview Switcher */
+    .device-switcher {
+      display: flex;
+      background: #edf2f7;
+      border-radius: 6px;
+      padding: 3px;
+      gap: 3px;
+    }
+    .device-btn {
+      border: none;
+      background: transparent;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s;
+    }
+    .device-btn.active {
+      background: #ffffff;
+      color: var(--primary);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .hint-banner {
+      max-width: 840px;
+      margin: 8px auto;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      background: rgba(255,255,255,0.7);
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px dashed var(--border);
+    }
+
+    /* ========================================= */
+    /* THE EMAIL CANVAS                          */
+    /* ========================================= */
+    .canvas-container {
+      max-width: 840px;
+      margin: 8px auto 90px auto;
+      background: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.06);
+      position: relative;
+      transition: max-width 0.3s ease;
+    }
+
+    /* Mobile Preview Mode */
+    .canvas-container.mode-mobile {
+      max-width: 390px;
+      border: 3px solid #cbd5e0;
+      border-radius: 24px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+    }
+    .canvas-container.mode-mobile .cols-wrapper {
+      grid-template-columns: 1fr !important;
+    }
+    .canvas-container.mode-mobile .canvas-header {
+      padding: 22px 20px;
+    }
+    .canvas-container.mode-mobile .canvas-body {
+      padding: 20px 16px;
+    }
+    .canvas-container.mode-mobile .canvas-header h1 {
+      font-size: 21px;
+    }
+
+    .canvas-header {
+      background-color: var(--primary);
+      padding: 28px 36px;
+      color: #ffffff;
+    }
+    .canvas-header h1 {
+      margin: 0;
+      font-size: 25px;
+      font-weight: 700;
+      outline: none;
+    }
+
+    .canvas-body {
+      padding: 34px;
+    }
+
+    [contenteditable="true"] {
+      outline: none;
+      transition: background-color 0.15s;
+      border-radius: 4px;
+      padding: 2px 4px;
+    }
+    [contenteditable="true"]:hover {
+      background-color: rgba(41, 141, 192, 0.08);
+      cursor: text;
+    }
+    [contenteditable="true"]:focus {
+      background-color: rgba(41, 141, 192, 0.12);
+      box-shadow: 0 0 0 2px var(--primary);
+    }
+
+    .canvas-greeting {
+      font-size: 16px;
+      font-weight: 600;
+      color: #2d3748;
+      margin-bottom: 12px;
+    }
+    .canvas-intro {
+      font-size: 15px;
+      color: #4a5568;
+      line-height: 1.65;
+      margin-bottom: 22px;
+    }
+
+    .canvas-highlight {
+      background-color: #f4f8fb;
+      border-left: 4px solid var(--primary);
+      padding: 15px 20px;
+      margin: 20px 0;
+      border-radius: 4px;
+      font-size: 15px;
+      color: #2d3748;
+      line-height: 1.55;
+    }
+
+    /* ========================================= */
+    /* VISUALLY DISTINCT SECTIONS                */
+    /* ========================================= */
+    .grid-section {
+      background: #ffffff;
+      border-left: 4px solid var(--primary);
+      border-top: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      border-bottom: 2px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 24px;
+      margin: 28px 0;
+      position: relative;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.03);
+      transition: box-shadow 0.2s;
+    }
+    .grid-section:hover {
+      box-shadow: 0 6px 16px rgba(41,141,192,0.08);
+    }
+    .grid-section.section-dragging {
+      opacity: 0.35;
+      border: 2px dashed var(--primary);
+    }
+    .grid-section.section-drag-over {
+      border-top: 3px solid var(--primary);
+    }
+
+    /* Section Top Bar with SECTION DRAG HANDLE */
+    .section-bar {
+      position: absolute;
+      top: -14px;
+      right: 12px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      z-index: 10;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .sec-drag-handle {
+      cursor: grab;
+      font-size: 11px;
+      font-weight: 700;
+      color: #4a5568;
+      background: #edf2f7;
+      padding: 2px 6px;
+      border-radius: 4px;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .sec-drag-handle:active { cursor: grabbing; }
+
+    /* Columns */
+    .cols-wrapper {
+      display: grid;
+      gap: 24px;
+    }
+    .cols-wrapper.layout-1 { grid-template-columns: 1fr; }
+    .cols-wrapper.layout-2 { grid-template-columns: 1fr 1fr; }
+    .cols-wrapper.layout-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+    .col-dropzone {
+      min-height: 90px;
+      border: 1px dashed transparent;
+      border-radius: 6px;
+      padding: 4px;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .col-dropzone.drag-active {
+      border-color: #cbd5e0;
+      background: rgba(237, 242, 247, 0.4);
+    }
+    .col-dropzone.drag-hover {
+      border-color: var(--primary);
+      background: #f0f7fb;
+    }
+
+    /* Elements */
+    .grid-item {
+      position: relative;
+      margin-bottom: 14px;
+      border-radius: 6px;
+      transition: all 0.15s;
+      cursor: default;
+    }
+    .grid-item:hover {
+      outline: 1px dashed #cbd5e0;
+    }
+    .grid-item.item-dragging {
+      opacity: 0.3;
+      outline: 2px dashed var(--primary);
+    }
+
+    .item-controls {
+      display: none;
+      position: absolute;
+      top: -11px;
+      right: 4px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 11px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      z-index: 20;
+      gap: 5px;
+      align-items: center;
+    }
+    .grid-item:hover .item-controls,
+    .grid-item:focus-within .item-controls {
+      display: flex;
+    }
+    
+    .item-drag-handle {
+      cursor: grab;
+      font-weight: 700;
+      color: #718096;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      padding: 1px 3px;
+    }
+    .item-drag-handle:active { cursor: grabbing; }
+
+    .add-item-placeholder {
+      border: 1px dashed #cbd5e0;
+      border-radius: 6px;
+      padding: 7px;
+      text-align: center;
+      font-size: 12px;
+      color: #718096;
+      cursor: pointer;
+      margin-top: 8px;
+      background: #f8fafc;
+      transition: all 0.2s;
+    }
+    .add-item-placeholder:hover {
+      background: #edf2f7;
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+
+    /* Images & Optional Captions */
+    .image-block-wrapper {
+      text-align: center;
+      position: relative;
+    }
+    .canvas-img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      display: inline-block;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .canvas-img:hover {
+      opacity: 0.95;
+    }
+
+    .caption-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 5px;
+    }
+    .img-caption {
+      font-size: 12px;
+      color: #718096;
+      font-style: italic;
+      text-align: center;
+    }
+    .btn-delete-caption {
+      background: none;
+      border: none;
+      color: var(--danger);
+      font-size: 11px;
+      cursor: pointer;
+      padding: 0 3px;
+      opacity: 0.6;
+    }
+    .btn-delete-caption:hover {
+      opacity: 1;
+    }
+    .btn-add-caption {
+      display: inline-block;
+      font-size: 11px;
+      color: var(--primary);
+      background: none;
+      border: 1px dashed var(--primary);
+      border-radius: 4px;
+      padding: 2px 8px;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+
+    /* Button Element */
+    .canvas-btn-wrapper {
+      text-align: center;
+      margin: 18px 0;
+    }
+    .canvas-btn {
+      background-color: var(--primary);
+      color: #ffffff;
+      text-decoration: none;
+      padding: 13px 26px;
+      font-size: 15px;
+      font-weight: 700;
+      border-radius: 6px;
+      display: inline-block;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(41,141,192,0.25);
+    }
+
+    .canvas-signoff {
+      color: #4a5568;
+      font-size: 15px;
+      line-height: 1.65;
+      margin-top: 28px;
+    }
+
+    .canvas-footer {
+      border-top: 1px solid var(--border);
+      margin-top: 34px;
+      padding-top: 18px;
+      text-align: center;
+      color: #a0aec0;
+      font-size: 12px;
+    }
+
+    /* Context Menu */
+    .context-menu {
+      display: none;
+      position: fixed;
+      z-index: 5000;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+      padding: 6px 0;
+      min-width: 250px;
+      font-size: 13px;
+    }
+    .context-menu-header {
+      padding: 6px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+    }
+    .context-menu-item {
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text);
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+    .context-menu-item:hover {
+      background-color: #f0f7fb;
+      color: var(--primary);
+    }
+    .context-menu-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+
+    /* ========================================= */
+    /* USER-FRIENDLY IMAGE PICKER MODAL          */
+    /* ========================================= */
+    .image-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+    }
+    .image-modal-card {
+      background: #ffffff;
+      width: 90%;
+      max-width: 600px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      max-height: 85vh;
+    }
+    .image-modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f8fafc;
+    }
+    .image-modal-header h3 {
+      margin: 0;
+      font-size: 16px;
+      color: var(--text);
+    }
+    .image-modal-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: #ffffff;
+    }
+    .img-tab-btn {
+      flex: 1;
+      padding: 12px;
+      background: none;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .img-tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      background: #f0f7fb;
+    }
+    .image-modal-body {
+      padding: 20px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    /* Dropzone for PC Upload */
+    .upload-dropzone {
+      border: 2px dashed #cbd5e0;
+      border-radius: 8px;
+      padding: 30px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #f8fafc;
+    }
+    .upload-dropzone:hover {
+      border-color: var(--primary);
+      background: #f0f7fb;
+    }
+
+    /* Drive Library Grid */
+    .drive-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 12px;
+      max-height: 320px;
+      overflow-y: auto;
+      padding: 4px;
+    }
+    .drive-thumb-card {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .drive-thumb-card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(41,141,192,0.2);
+      transform: translateY(-2px);
+    }
+    .drive-thumb-img {
+      width: 100%;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+    .drive-thumb-name {
+      font-size: 11px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 4px;
+    }
+
+    /* Login Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    .modal {
+      background: #ffffff;
+      padding: 30px;
+      border-radius: 12px;
+      max-width: 380px;
+      width: 90%;
+      text-align: center;
+    }
+
+    .spinner {
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top: 3px solid #ffffff;
+      width: 14px;
+      height: 14px;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <!-- Login Modal -->
+  <div id="loginModal" class="modal-overlay">
+    <div class="modal">
+      <h2 style="color: var(--primary); margin-top: 0;">Newsletter Studio</h2>
+      <p style="color: var(--text-muted); font-size: 14px;">Zadejte heslo pro přístup:</p>
+      <div style="margin-bottom: 15px;">
+        <input type="password" id="adminPasswordInput" placeholder="Heslo..." style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;" onkeydown="if(event.key==='Enter') doLogin()">
+      </div>
+      <div id="loginError" style="color: var(--danger); font-size: 13px; margin-bottom: 12px; display: none;">Neplatné heslo!</div>
+      <button class="btn btn-primary" style="width: 100%;" onclick="doLogin()">Vstoupit do studia</button>
+    </div>
+  </div>
+
+  <!-- Top Sticky Navigation Bar -->
+  <div class="top-bar">
+    <div class="brand">
+      <span>✉️</span> Newsletter Studio
+    </div>
+
+    <!-- Status Badges -->
+    <div class="status-badges">
+      <div class="badge quota">Quota: <strong id="quotaVal">1500</strong> zbývá</div>
+      <div class="badge">Skupina 1: <strong id="g1CountVal">0</strong></div>
+      <div class="badge">Skupina 2: <strong id="g2CountVal">0</strong></div>
+      <div class="badge" style="color: var(--danger);">Odhlášeno: <strong id="unsubCountVal">0</strong></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="header-actions">
+      <input type="text" id="testEmailInput" placeholder="Testovací email..." style="padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; width: 150px;">
+      <button class="btn btn-secondary" id="btnSendTest" onclick="sendTestEmail()">🧪 Test</button>
+      
+      <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer;">
+        <input type="checkbox" id="simulationMode"> ⏱️ Simulace 2 min
+      </label>
+
+      <button class="btn btn-primary" id="btnLaunch" onclick="launchCampaign()">🚀 Odeslat kampaň</button>
+    </div>
+  </div>
+
+  <!-- Simulation Active Banner -->
+  <div id="triggerBanner" class="banner" style="display: none;">
+    <div>
+      <strong>⏱️ Skupina 2 je naplánována!</strong>
+      <span id="triggerTimeText" style="margin-left: 6px;"></span>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button class="btn btn-sm btn-primary" onclick="simulateGroup2Now()">⚡ Spustit Skupinu 2 hned (Simulace)</button>
+      <button class="btn btn-sm btn-danger" onclick="cancelPendingTrigger()">Zrušit</button>
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- METADATA & PREVIEW CONTROLS (ABOVE EDITOR)    -->
+  <!-- ============================================= -->
+  <div class="editor-control-panel">
+    <div class="meta-fields-group">
+      <div class="meta-field">
+        <label>Předmět emailu:</label>
+        <input type="text" id="subjectInput" value="SHM Uhříněves - Kolovraty newsletter">
+      </div>
+      <div class="meta-field">
+        <label>Jméno odesílatele:</label>
+        <input type="text" id="senderNameInput" value="SHM Uhříněves - Kolovraty">
+      </div>
+    </div>
+
+    <!-- Device Preview Mode -->
+    <div class="device-switcher">
+      <button type="button" class="device-btn active" id="btnViewDesktop" onclick="setDeviceMode('desktop')">
+        🖥️ Počítač
+      </button>
+      <button type="button" class="device-btn" id="btnViewMobile" onclick="setDeviceMode('mobile')">
+        📱 Mobil
+      </button>
+    </div>
+  </div>
+
+  <!-- Instruction Hint -->
+  <div class="hint-banner">
+    💡 <strong>Tip:</strong> Text označíte myší normálně. Prvky i celé sekce přetahujte za úchyt <strong>⠿</strong>. Kliknutím pravým tlačítkem myši vložíte nové prvky.
+  </div>
+
+  <!-- ============================================= -->
+  <!-- EMAIL CANVAS                                  -->
+  <!-- ============================================= -->
+  <div class="canvas-container" id="emailCanvas">
+    
+    <!-- Header Banner -->
+    <div class="canvas-header">
+      <h1 contenteditable="true" id="headerTitle" title="Klikněte pro úpravu nadpisu">SHM Uhříněves - Kolovraty newsletter</h1>
+    </div>
+
+    <!-- Body -->
+    <div class="canvas-body">
+      
+      <!-- Greeting -->
+      <div class="canvas-greeting" contenteditable="true" id="greetingText" title="Klikněte pro úpravu">
+        Dobrý den,
+      </div>
+
+      <!-- Intro Paragraph 1 -->
+      <div class="canvas-intro" contenteditable="true" id="introText" title="Klikněte pro úpravu">
+        Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Fusce wisi. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Duis risus. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Integer lacinia. In laoreet, magna id viverra tincidunt, sem odio bibendum justo, vel imperdiet sapien wisi sed libero. Duis pulvinar. Donec quis nibh at felis congue commodo. Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et molestiae non recusandae. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Donec ipsum massa, ullamcorper in, auctor et, scelerisque sed, est. Ut tempus purus at lorem. Pellentesque pretium lectus id turpis. Morbi leo mi, nonummy eget tristique non, rhoncus non leo. Aliquam ante. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Integer tempor. Suspendisse sagittis ultrices augue. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem.
+      </div>
+
+      <!-- Highlight Box -->
+      <div class="canvas-highlight" contenteditable="true" id="highlightBox" title="Klikněte pro úpravu">
+        <strong>DŮLEŽITÉ:</strong> Zde můžete napsat libovolné zvýrazněné upozornění, termíny, nebo informace pro příjemce.
+      </div>
+
+      <div style="border-top: 1px solid var(--border); margin: 26px 0;"></div>
+
+      <!-- DYNAMIC GRID SECTIONS -->
+      <div id="gridSectionsContainer"></div>
+
+      <!-- Signoff -->
+      <div class="canvas-signoff" contenteditable="true" id="signoffText" title="Klikněte pro úpravu">
+        V případě dotazů nás neváhejte kontaktovat.<br><br>
+        Děkujeme!<br>
+        <strong>SHM Uhříněves - Kolovraty</strong>
+      </div>
+
+      <!-- Footer & Unsubscribe -->
+      <div class="canvas-footer">
+        Pokud si již nepřejete dostávat další emaily, můžete se <a href="#" style="color: var(--primary); text-decoration: underline;" onclick="alert('Zde bude v odeslaném emailu funkční dvoukrokový odkaz pro odhlášení.'); return false;">odhlásit z odběru</a>.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- USER-FRIENDLY IMAGE PICKER MODAL              -->
+  <!-- ============================================= -->
+  <div id="imagePickerModal" class="image-modal">
+    <div class="image-modal-card">
+      <div class="image-modal-header">
+        <h3>🖼️ Vybrat nebo nahrát obrázek</h3>
+        <button style="background: none; border: none; font-size: 18px; cursor: pointer;" onclick="closeImagePicker()">✕</button>
+      </div>
+      
+      <div class="image-modal-tabs">
+        <button class="img-tab-btn active" id="tabBtnPc" onclick="switchImageTab('pc')">💻 Z počítače</button>
+        <button class="img-tab-btn" id="tabBtnDrive" onclick="switchImageTab('drive')">📁 Z Google Disku</button>
+        <button class="img-tab-btn" id="tabBtnUrl" onclick="switchImageTab('url')">🔗 Z URL odkazu</button>
+      </div>
+
+      <div class="image-modal-body">
+        <!-- Tab 1: PC File Upload -->
+        <div id="tabContentPc">
+          <input type="file" id="modalFileInput" accept="image/*" style="display: none;" onchange="handleModalFileSelected(event)">
+          <div class="upload-dropzone" id="modalUploadDropzone" onclick="document.getElementById('modalFileInput').click()" ondragover="handleDropzoneDragOver(event)" ondragleave="handleDropzoneDragLeave(event)" ondrop="handleDropzoneDrop(event)">
+            <div style="font-size: 32px; margin-bottom: 8px;">📂</div>
+            <strong style="color: var(--primary); font-size: 14px;">Klikněte nebo přetáhněte soubor z počítače</strong>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">PNG, JPG, WEBP (automaticky se optimalizuje a nahraje na Váš Google Disk)</div>
+          </div>
+          <div id="uploadProgress" style="display: none; text-align: center; margin-top: 15px; color: var(--primary); font-size: 13px;">
+            <span class="spinner" style="border-top-color: var(--primary); border-color: rgba(41,141,192,0.3);"></span> Nahrávám na Google Disk...
+          </div>
+        </div>
+
+        <!-- Tab 2: Drive Library Gallery -->
+        <div id="tabContentDrive" style="display: none;">
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+            Obrázky dříve nahrané do složky <strong>Newsletter Images</strong> na Vašem Google Disku:
+          </div>
+          <div id="driveLoadingSpinner" style="text-align: center; padding: 20px;">
+            <span class="spinner" style="border-top-color: var(--primary); border-color: rgba(41,141,192,0.3);"></span> Načítám z Google Disku...
+          </div>
+          <div class="drive-grid" id="driveAssetsGrid"></div>
+        </div>
+
+        <!-- Tab 3: URL input -->
+        <div id="tabContentUrl" style="display: none;">
+          <label style="font-size: 12px; font-weight: 600; color: #4a5568; display: block; margin-bottom: 6px;">URL adresa obrázku:</label>
+          <input type="text" id="modalUrlInput" placeholder="https://example.com/obrazek.jpg" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;" oninput="previewModalUrl()">
+          <div id="modalUrlPreviewWrap" style="text-align: center; margin-top: 15px; display: none;">
+            <img id="modalUrlPreviewImg" style="max-height: 160px; max-width: 100%; border-radius: 6px; border: 1px solid var(--border);">
+          </div>
+          <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="applyModalUrl()">Použít tento obrázek</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- RIGHT-CLICK CONTEXT MENU                      -->
+  <!-- ============================================= -->
+  <div id="contextMenu" class="context-menu">
+    <div class="context-menu-header" id="contextMenuHeader">Vložit do této pozice</div>
+    
+    <div class="context-menu-item" onclick="insertElementFromMenu('text')">
+      <span>📝</span> Textové pole (Odstavec)
+    </div>
+    <div class="context-menu-item" onclick="insertElementFromMenu('heading')">
+      <span>🏷️</span> Nadpis
+    </div>
+    <div class="context-menu-item" onclick="insertElementFromMenu('image')">
+      <span>🖼️</span> Obrázek
+    </div>
+    <div class="context-menu-item" onclick="insertElementFromMenu('button')">
+      <span>🔘</span> Tlačítko s odkazem
+    </div>
+    <div class="context-menu-item" onclick="insertElementFromMenu('highlight')">
+      <span>💡</span> Zvýrazněný box
+    </div>
+    <div class="context-menu-item" onclick="insertElementFromMenu('divider')">
+      <span>➖</span> Vodorovný oddělovač
+    </div>
+
+    <div class="context-menu-divider"></div>
+    <div class="context-menu-header">Vložit novou sekci / řádek</div>
+
+    <div class="context-menu-item" onclick="insertNewSection('2')">
+      <span>🌓</span> Nová sekce: 2 sloupce (Půlka & Půlka)
+    </div>
+    <div class="context-menu-item" onclick="insertNewSection('1')">
+      <span>📱</span> Nová sekce: Celá šířka (1 sloupec)
+    </div>
+    <div class="context-menu-item" onclick="insertNewSection('3')">
+      <span>🏛️</span> Nová sekce: 3 sloupce
+    </div>
+
+    <div id="contextDeleteElementRow" style="display: none;">
+      <div class="context-menu-divider"></div>
+      <div class="context-menu-item" style="color: var(--danger);" onclick="deleteContextTargetItem()">
+        <span>🗑️</span> Smazat tento prvek
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var DEFAULT_IMAGE_URL = "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=600&auto=format&fit=crop&q=80";
+
+    var gridSections = [
+      {
+        id: "sec_1",
+        hasBorder: true,
+        cols: [
+          [
+            {
+              id: "item_img_1",
+              type: "image",
+              url: DEFAULT_IMAGE_URL,
+              caption: "" // Empty caption by default (not mandatory!)
+            }
+          ],
+          [
+            {
+              id: "item_head_1",
+              type: "heading",
+              text: "První část newsletteru"
+            },
+            {
+              id: "item_txt_1",
+              type: "text",
+              text: "Nullam dapibus fermentum ipsum. Maecenas fermentum, sem in pharetra pellentesque, velit turpis volutpat ante, in pharetra metus odio a lectus. Aliquam in lorem sit amet leo accumsan lacinia. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos hymenaeos. Mauris elementum mauris vitae tortor. Donec ipsum massa, ullamcorper in, auctor et, scelerisque sed, est. Nulla non lectus sed nisl molestie malesuada. In rutrum. Et harum quidem rerum facilis est et expedita distinctio. Aenean id metus id velit ullamcorper pulvinar. Maecenas ipsum velit, consectetuer eu lobortis ut, dictum at dui. Maecenas sollicitudin. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Etiam dui sem, fermentum vitae, sagittis id, malesuada in, quam. Mauris elementum mauris vitae tortor. Mauris tincidunt sem sed arcu. Duis risus. Aenean placerat."
+            }
+          ]
+        ]
+      },
+      {
+        id: "sec_2",
+        hasBorder: true,
+        cols: [
+          [
+            {
+              id: "item_txt_2",
+              type: "text",
+              text: "Mauris dolor felis, sagittis at, luctus sed, aliquam non, tellus. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Nulla est. Mauris suscipit, ligula sit amet pharetra semper, nibh ante cursus purus, vel sagittis velit mauris vel metus. Nullam feugiat, turpis at pulvinar vulputate, erat libero tristique tellus, nec bibendum odio risus sit amet ante. Itaque earum rerum hic tenetur a sapiente delectus, ut aut reiciendis voluptatibus maiores alias consequatur aut perferendis doloribus asperiores repellat. Etiam posuere lacus quis dolor. Etiam sapien elit, consequat eget, tristique non, venenatis quis, ante. Praesent dapibus. Maecenas aliquet accumsan leo. In dapibus augue non sapien. Vestibulum erat nulla, ullamcorper nec, rutrum non, nonummy ac, erat. Phasellus rhoncus. Aenean id metus id velit ullamcorper pulvinar. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Etiam dictum tincidunt diam."
+            },
+            {
+              id: "item_btn_1",
+              type: "button",
+              text: "Více informací na webu",
+              url: "https://example.com",
+              align: "center"
+            }
+          ]
+        ]
+      }
+    ];
+
+    var dragItemSource = { sectionId: null, colIndex: null, itemIndex: null, itemId: null };
+    var dragSectionSourceIndex = null;
+    var contextTarget = { sectionId: null, colIndex: 0, itemIndex: null, itemId: null };
+    var activeModalItemId = null;
+
+    window.addEventListener("DOMContentLoaded", function() {
+      var savedPwd = localStorage.getItem("newsletter_admin_pwd");
+      if (savedPwd) {
+        document.getElementById("adminPasswordInput").value = savedPwd;
+        doLogin();
+      }
+      renderGrid();
+      setupContextMenu();
+    });
+
+    function doLogin() {
+      var pwd = document.getElementById("adminPasswordInput").value;
+      google.script.run
+        .withSuccessHandler(function(isValid) {
+          if (isValid) {
+            localStorage.setItem("newsletter_admin_pwd", pwd);
+            document.getElementById("loginModal").style.display = "none";
+            loadSystemInfo();
+          } else {
+            document.getElementById("loginError").style.display = "block";
+          }
+        })
+        .withFailureHandler(function(err) { alert("Chyba: " + err); })
+        .verifyPassword(pwd);
+    }
+
+    function loadSystemInfo() {
+      google.script.run
+        .withSuccessHandler(function(info) {
+          document.getElementById("quotaVal").innerText = info.dailyQuotaRemaining;
+          document.getElementById("g1CountVal").innerText = info.group1Count;
+          document.getElementById("g2CountVal").innerText = info.group2Count;
+          document.getElementById("unsubCountVal").innerText = info.unsubscribedCount;
+
+          if (info.hasPendingGroup2Trigger && info.activeCampaign) {
+            document.getElementById("triggerBanner").style.display = "flex";
+            document.getElementById("triggerTimeText").innerText = 
+              "Naplánováno na: " + new Date(info.activeCampaign.scheduledTime).toLocaleString("cs-CZ");
+          } else {
+            document.getElementById("triggerBanner").style.display = "none";
+          }
+        })
+        .getSystemInfo();
+    }
+
+    function setDeviceMode(mode) {
+      var canvas = document.getElementById("emailCanvas");
+      var btnDesk = document.getElementById("btnViewDesktop");
+      var btnMob = document.getElementById("btnViewMobile");
+
+      if (mode === "mobile") {
+        canvas.classList.add("mode-mobile");
+        btnMob.classList.add("active");
+        btnDesk.classList.remove("active");
+      } else {
+        canvas.classList.remove("mode-mobile");
+        btnDesk.classList.add("active");
+        btnMob.classList.remove("active");
+      }
+    }
+
+    // =============================================
+    // RENDER GRID (SECTIONS & ELEMENTS)
+    // =============================================
+    function renderGrid() {
+      var container = document.getElementById("gridSectionsContainer");
+      container.innerHTML = "";
+
+      gridSections.forEach(function(sec, secIndex) {
+        var secDiv = document.createElement("div");
+        secDiv.className = "grid-section" + (sec.hasBorder ? "" : " no-border");
+        secDiv.dataset.sectionId = sec.id;
+        secDiv.dataset.sectionIndex = secIndex;
+
+        // SECTION DRAG & DROP
+        secDiv.addEventListener("dragover", function(e) {
+          if (dragSectionSourceIndex !== null) {
+            e.preventDefault();
+            secDiv.classList.add("section-drag-over");
+          }
+        });
+        secDiv.addEventListener("dragleave", function() {
+          secDiv.classList.remove("section-drag-over");
+        });
+        secDiv.addEventListener("drop", function(e) {
+          if (dragSectionSourceIndex !== null && dragSectionSourceIndex !== secIndex) {
+            e.preventDefault();
+            secDiv.classList.remove("section-drag-over");
+            saveCurrentContentFromDOM();
+            var movedSec = gridSections.splice(dragSectionSourceIndex, 1)[0];
+            gridSections.splice(secIndex, 0, movedSec);
+            dragSectionSourceIndex = null;
+            renderGrid();
+          }
+        });
+
+        // Section Top Bar with SECTION DRAG HANDLE
+        var secBar = document.createElement("div");
+        secBar.className = "section-bar";
+        secBar.innerHTML = [
+          '<span class="sec-drag-handle" title="Uchopte a přetáhněte celou sekci">⠿ SEKCE #' + (secIndex + 1) + '</span>',
+          '<button class="btn btn-sm btn-secondary" onclick="toggleSecBorder(\'' + sec.id + '\')">' + (sec.hasBorder ? "Bez rámečku" : "S rámečkem") + '</button>',
+          '<button class="btn btn-sm btn-danger" onclick="deleteSection(\'' + sec.id + '\')">✕ Smazat</button>'
+        ].join('');
+
+        var secHandle = secBar.querySelector(".sec-drag-handle");
+        secHandle.addEventListener("mousedown", function() {
+          secDiv.draggable = true;
+          dragSectionSourceIndex = secIndex;
+        });
+        secDiv.addEventListener("dragend", function() {
+          secDiv.draggable = false;
+          secDiv.classList.remove("section-dragging");
+          dragSectionSourceIndex = null;
+        });
+        secDiv.addEventListener("dragstart", function() {
+          secDiv.classList.add("section-dragging");
+        });
+
+        secDiv.appendChild(secBar);
+
+        // Columns
+        var colsWrapper = document.createElement("div");
+        colsWrapper.className = "cols-wrapper layout-" + sec.cols.length;
+
+        sec.cols.forEach(function(colItems, colIdx) {
+          var dropzone = document.createElement("div");
+          dropzone.className = "col-dropzone";
+          dropzone.dataset.sectionId = sec.id;
+          dropzone.dataset.colIndex = colIdx;
+
+          dropzone.addEventListener("dragover", function(e) {
+            if (dragItemSource.itemId) {
+              e.preventDefault();
+              e.stopPropagation();
+              dropzone.classList.add("drag-hover");
+            }
+          });
+          dropzone.addEventListener("dragleave", function(e) {
+            e.stopPropagation();
+            dropzone.classList.remove("drag-hover");
+          });
+          dropzone.addEventListener("drop", function(e) {
+            if (dragItemSource.itemId) {
+              e.preventDefault();
+              e.stopPropagation();
+              dropzone.classList.remove("drag-hover");
+              handleItemDrop(sec.id, colIdx, null);
+            }
+          });
+
+          // Elements
+          colItems.forEach(function(item, itemIdx) {
+            var itemDiv = document.createElement("div");
+            itemDiv.className = "grid-item";
+            itemDiv.dataset.itemId = item.id;
+            itemDiv.dataset.sectionId = sec.id;
+            itemDiv.dataset.colIndex = colIdx;
+            itemDiv.dataset.itemIndex = itemIdx;
+
+            // Element controls with RESERVED HANDLE
+            var controls = document.createElement("div");
+            controls.className = "item-controls";
+            controls.innerHTML = [
+              '<span class="item-drag-handle" title="Uchopte tento úchyt a přetáhněte">⠿ Přetáhnout</span>',
+              '<button class="btn btn-sm btn-danger" onclick="deleteItem(\'' + sec.id + '\', ' + colIdx + ', ' + itemIdx + ')" title="Smazat">✕</button>'
+            ].join('');
+            itemDiv.appendChild(controls);
+
+            var handleEl = controls.querySelector(".item-drag-handle");
+            handleEl.addEventListener("mousedown", function() {
+              itemDiv.draggable = true;
+              dragItemSource = {
+                sectionId: sec.id,
+                colIndex: colIdx,
+                itemIndex: itemIdx,
+                itemId: item.id
+              };
+            });
+
+            itemDiv.addEventListener("dragstart", function(e) {
+              e.stopPropagation();
+              itemDiv.classList.add("item-dragging");
+              document.querySelectorAll(".col-dropzone").forEach(function(dz) {
+                dz.classList.add("drag-active");
+              });
+            });
+
+            itemDiv.addEventListener("dragend", function(e) {
+              e.stopPropagation();
+              itemDiv.draggable = false;
+              itemDiv.classList.remove("item-dragging");
+              dragItemSource = { sectionId: null, colIndex: null, itemIndex: null, itemId: null };
+              document.querySelectorAll(".col-dropzone").forEach(function(dz) {
+                dz.classList.remove("drag-active", "drag-hover");
+              });
+            });
+
+            itemDiv.addEventListener("dragover", function(e) {
+              if (dragItemSource.itemId) {
+                e.preventDefault();
+                e.stopPropagation();
+                itemDiv.style.borderTop = "2px solid var(--primary)";
+              }
+            });
+            itemDiv.addEventListener("dragleave", function(e) {
+              e.stopPropagation();
+              itemDiv.style.borderTop = "";
+            });
+            itemDiv.addEventListener("drop", function(e) {
+              if (dragItemSource.itemId) {
+                e.preventDefault();
+                e.stopPropagation();
+                itemDiv.style.borderTop = "";
+                handleItemDrop(sec.id, colIdx, itemIdx);
+              }
+            });
+
+            itemDiv.appendChild(createItemElementDom(item));
+            dropzone.appendChild(itemDiv);
+          });
+
+          var addPlaceholder = document.createElement("div");
+          addPlaceholder.className = "add-item-placeholder";
+          addPlaceholder.innerHTML = "+ Vložit prvek sem (nebo klikněte pravým)";
+          addPlaceholder.onclick = function(e) {
+            e.stopPropagation();
+            contextTarget = { sectionId: sec.id, colIndex: colIdx, itemIndex: colItems.length, itemId: null };
+            showContextMenuAt(e.clientX, e.clientY, "Vložit do tohoto sloupce");
+          };
+          dropzone.appendChild(addPlaceholder);
+
+          colsWrapper.appendChild(dropzone);
+        });
+
+        secDiv.appendChild(colsWrapper);
+        container.appendChild(secDiv);
+      });
+    }
+
+    function createItemElementDom(item) {
+      var wrap = document.createElement("div");
+
+      if (item.type === "heading") {
+        wrap.innerHTML = '<h3 contenteditable="true" style="color: var(--primary); margin: 0 0 8px 0; font-size: 19px; font-weight: 700;" id="el_' + item.id + '">' + escapeHtml(item.text) + '</h3>';
+      } else if (item.type === "text") {
+        wrap.innerHTML = '<div contenteditable="true" style="color: #4a5568; font-size: 15px; line-height: 1.65;" id="el_' + item.id + '">' + (item.text || "").replace(/\n/g, '<br>') + '</div>';
+      } else if (item.type === "image") {
+        var capHtml = "";
+        if (item.caption && item.caption.trim() !== "") {
+          capHtml = [
+            '<div class="caption-wrapper" id="capwrap_' + item.id + '">',
+            '  <span contenteditable="true" class="img-caption" id="cap_' + item.id + '">' + escapeHtml(item.caption) + '</span>',
+            '  <button type="button" class="btn-delete-caption" onclick="removeCaption(\'' + item.id + '\')" title="Smazat popisek">✕</button>',
+            '</div>'
+          ].join('');
+        } else {
+          capHtml = [
+            '<div style="text-align: center;" id="capwrap_' + item.id + '">',
+            '  <button type="button" class="btn-add-caption" onclick="addCaption(\'' + item.id + '\')">+ Přidat popisek</button>',
+            '</div>'
+          ].join('');
+        }
+
+        wrap.innerHTML = [
+          '<div class="image-block-wrapper">',
+          '  <img class="canvas-img" src="' + (item.url || DEFAULT_IMAGE_URL) + '" onclick="openImagePicker(\'' + item.id + '\')" title="Klikněte pro změnu nebo nahrání obrázku">',
+          capHtml,
+          '</div>'
+        ].join('');
+      } else if (item.type === "button") {
+        wrap.innerHTML = [
+          '<div class="canvas-btn-wrapper">',
+          '  <a class="canvas-btn" contenteditable="true" id="btn_' + item.id + '" onclick="editButtonUrl(\'' + item.id + '\', event)">' + escapeHtml(item.text || 'Tlačítko') + '</a>',
+          '</div>'
+        ].join('');
+      } else if (item.type === "highlight") {
+        wrap.innerHTML = '<div contenteditable="true" class="canvas-highlight" id="el_' + item.id + '">' + (item.text || "").replace(/\n/g, '<br>') + '</div>';
+      } else if (item.type === "divider") {
+        wrap.innerHTML = '<div style="border-top: 1px solid var(--border); margin: 22px 0;"></div>';
+      }
+
+      return wrap;
+    }
+
+    // Caption Handlers (Optional & Deletable)
+    function removeCaption(itemId) {
+      saveCurrentContentFromDOM();
+      findItemById(itemId, function(item) {
+        item.caption = "";
+      });
+      renderGrid();
+    }
+
+    function addCaption(itemId) {
+      saveCurrentContentFromDOM();
+      findItemById(itemId, function(item) {
+        item.caption = "Zadejte popisek k obrázku...";
+      });
+      renderGrid();
+    }
+
+    function findItemById(itemId, callback) {
+      gridSections.forEach(function(sec) {
+        sec.cols.forEach(function(col) {
+          var found = col.find(function(i) { return i.id === itemId; });
+          if (found) callback(found);
+        });
+      });
+    }
+
+    // Drop handler
+    function handleItemDrop(targetSecId, targetColIdx, targetItemIdx) {
+      if (!dragItemSource.itemId) return;
+
+      saveCurrentContentFromDOM();
+
+      var sourceSec = gridSections.find(function(s) { return s.id === dragItemSource.sectionId; });
+      if (!sourceSec) return;
+      var sourceCol = sourceSec.cols[dragItemSource.colIndex];
+      if (!sourceCol) return;
+
+      var movedItem = sourceCol.splice(dragItemSource.itemIndex, 1)[0];
+      if (!movedItem) return;
+
+      var targetSec = gridSections.find(function(s) { return s.id === targetSecId; });
+      if (!targetSec) return;
+      var targetCol = targetSec.cols[targetColIdx];
+      if (!targetCol) return;
+
+      if (targetItemIdx === null || targetItemIdx === undefined || targetItemIdx >= targetCol.length) {
+        targetCol.push(movedItem);
+      } else {
+        targetCol.splice(targetItemIdx, 0, movedItem);
+      }
+
+      dragItemSource = { sectionId: null, colIndex: null, itemIndex: null, itemId: null };
+      renderGrid();
+    }
+
+    function saveCurrentContentFromDOM() {
+      gridSections.forEach(function(sec) {
+        sec.cols.forEach(function(col) {
+          col.forEach(function(item) {
+            if (item.type === "heading" || item.type === "text" || item.type === "highlight") {
+              var el = document.getElementById("el_" + item.id);
+              if (el) item.text = el.innerHTML.replace(/<br\s*[\/]?>/gi, "\n").replace(/<div>/gi, "\n").replace(/<\/div>/gi, "").replace(/<p>/gi, "").replace(/<\/p>/gi, "\n");
+            } else if (item.type === "image") {
+              var cap = document.getElementById("cap_" + item.id);
+              if (cap) item.caption = cap.innerText.trim();
+            } else if (item.type === "button") {
+              var btn = document.getElementById("btn_" + item.id);
+              if (btn) item.text = btn.innerText;
+            }
+          });
+        });
+      });
+    }
+
+    // =============================================
+    // USER-FRIENDLY IMAGE PICKER MODAL LOGIC
+    // =============================================
+    function openImagePicker(itemId) {
+      activeModalItemId = itemId;
+      document.getElementById("imagePickerModal").style.display = "flex";
+      switchImageTab("pc");
+    }
+
+    function closeImagePicker() {
+      document.getElementById("imagePickerModal").style.display = "none";
+      activeModalItemId = null;
+    }
+
+    function switchImageTab(tabKey) {
+      var tabs = ["pc", "drive", "url"];
+      tabs.forEach(function(t) {
+        var btn = document.getElementById("tabBtn" + t.charAt(0).toUpperCase() + t.slice(1));
+        var content = document.getElementById("tabContent" + t.charAt(0).toUpperCase() + t.slice(1));
+        if (btn) btn.classList.remove("active");
+        if (content) content.style.display = "none";
+      });
+
+      var activeBtn = document.getElementById("tabBtn" + tabKey.charAt(0).toUpperCase() + tabKey.slice(1));
+      var activeContent = document.getElementById("tabContent" + tabKey.charAt(0).toUpperCase() + tabKey.slice(1));
+      if (activeBtn) activeBtn.classList.add("active");
+      if (activeContent) activeContent.style.display = "block";
+
+      if (tabKey === "drive") {
+        loadDriveAssets();
+      }
+    }
+
+    // 1. PC File Upload & Drag-and-Drop
+    function handleDropzoneDragOver(e) {
+      e.preventDefault();
+      var dropzone = document.getElementById("modalUploadDropzone");
+      if (dropzone) dropzone.style.borderColor = "var(--primary)";
+    }
+
+    function handleDropzoneDragLeave(e) {
+      e.preventDefault();
+      var dropzone = document.getElementById("modalUploadDropzone");
+      if (dropzone) dropzone.style.borderColor = "";
+    }
+
+    function handleDropzoneDrop(e) {
+      e.preventDefault();
+      var dropzone = document.getElementById("modalUploadDropzone");
+      if (dropzone) dropzone.style.borderColor = "";
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        processSelectedImageFile(e.dataTransfer.files[0]);
+      }
+    }
+
+    function handleModalFileSelected(e) {
+      var file = e.target.files[0];
+      if (file) {
+        processSelectedImageFile(file);
+      }
+      e.target.value = "";
+    }
+
+    // Client-side image resizing via Canvas for instant loading and avoiding payload limits
+    function resizeImageClientSide(dataUrl, maxDim, quality, callback) {
+      var img = new Image();
+      img.onload = function() {
+        var w = img.width;
+        var h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+        var canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        var ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        var outputData = canvas.toDataURL("image/jpeg", quality || 0.85);
+        callback(outputData);
+      };
+      img.onerror = function() {
+        callback(dataUrl);
+      };
+      img.src = dataUrl;
+    }
+
+    function processSelectedImageFile(file) {
+      if (!file || !activeModalItemId) return;
+
+      var progress = document.getElementById("uploadProgress");
+      progress.style.display = "block";
+      progress.innerHTML = '<span class="spinner" style="border-top-color: var(--primary); border-color: rgba(41,141,192,0.3);"></span> Optimalizuji obrázek...';
+
+      var reader = new FileReader();
+      reader.onload = function(evt) {
+        var rawData = evt.target.result;
+        
+        // Resize and compress client-side to max 1200px width/height and ~200KB JPEG
+        resizeImageClientSide(rawData, 1200, 0.85, function(compressedData) {
+          // Check if running in Google Apps Script Web App environment
+          if (typeof google === "undefined" || !google.script || !google.script.run) {
+            progress.style.display = "none";
+            applyImageUrl(activeModalItemId, compressedData);
+            closeImagePicker();
+            return;
+          }
+
+          progress.innerHTML = '<span class="spinner" style="border-top-color: var(--primary); border-color: rgba(41,141,192,0.3);"></span> Nahrávám na Váš Google Disk...';
+
+          var safeFileName = (file.name || "newsletter_image.jpg").replace(/\.[^/.]+$/, "") + ".jpg";
+
+          google.script.run
+            .withSuccessHandler(function(res) {
+              progress.style.display = "none";
+              if (res && res.success && res.url) {
+                applyImageUrl(activeModalItemId, res.url);
+                closeImagePicker();
+              } else {
+                console.warn("Drive upload warning:", res);
+                // Fallback to compressed base64 so user is never blocked!
+                applyImageUrl(activeModalItemId, compressedData);
+                closeImagePicker();
+              }
+            })
+            .withFailureHandler(function(err) {
+              progress.style.display = "none";
+              console.warn("GAS connection error:", err);
+              // Fallback to compressed base64 so user is never blocked!
+              applyImageUrl(activeModalItemId, compressedData);
+              closeImagePicker();
+            })
+            .uploadImage(compressedData, safeFileName, "image/jpeg");
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // 2. Drive Library Gallery
+    function loadDriveAssets() {
+      var grid = document.getElementById("driveAssetsGrid");
+      var spinner = document.getElementById("driveLoadingSpinner");
+      grid.innerHTML = "";
+      spinner.style.display = "block";
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          spinner.style.display = "none";
+          if (res && res.success && res.images && res.images.length > 0) {
+            res.images.forEach(function(img) {
+              var card = document.createElement("div");
+              card.className = "drive-thumb-card";
+              card.innerHTML = [
+                '<img class="drive-thumb-img" src="' + img.thumbnailUrl + '">',
+                '<div class="drive-thumb-name" title="' + escapeHtml(img.name) + '">' + escapeHtml(img.name) + '</div>'
+              ].join('');
+              card.onclick = function() {
+                applyImageUrl(activeModalItemId, img.url);
+                closeImagePicker();
+              };
+              grid.appendChild(card);
+            });
+          } else {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px;">V Google Disku zatím nejsou žádné obrázky. Nahrajte první ze záložky "Z počítače".</div>';
+          }
+        })
+        .withFailureHandler(function(err) {
+          spinner.style.display = "none";
+          grid.innerHTML = '<div style="color: var(--danger); font-size: 12px;">Chyba načítání z Google Disku: ' + err + '</div>';
+        })
+        .getDriveAssets();
+    }
+
+    // 3. URL Handler
+    function previewModalUrl() {
+      var url = document.getElementById("modalUrlInput").value.trim();
+      var wrap = document.getElementById("modalUrlPreviewWrap");
+      var img = document.getElementById("modalUrlPreviewImg");
+      if (url.startsWith("http")) {
+        img.src = url;
+        wrap.style.display = "block";
+      } else {
+        wrap.style.display = "none";
+      }
+    }
+
+    function applyModalUrl() {
+      var url = document.getElementById("modalUrlInput").value.trim();
+      if (!url) {
+        alert("Zadejte platnou URL adresu!");
+        return;
+      }
+      applyImageUrl(activeModalItemId, url);
+      closeImagePicker();
+    }
+
+    function applyImageUrl(itemId, url) {
+      saveCurrentContentFromDOM();
+      findItemById(itemId, function(item) {
+        item.url = url;
+      });
+      renderGrid();
+    }
+
+    // Context Menu
+    function setupContextMenu() {
+      var menu = document.getElementById("contextMenu");
+      var canvas = document.getElementById("emailCanvas");
+
+      canvas.addEventListener("contextmenu", function(e) {
+        e.preventDefault();
+        saveCurrentContentFromDOM();
+
+        var itemEl = e.target.closest(".grid-item");
+        var dropzoneEl = e.target.closest(".col-dropzone");
+        var secEl = e.target.closest(".grid-section");
+
+        if (itemEl) {
+          contextTarget = {
+            sectionId: itemEl.dataset.sectionId,
+            colIndex: parseInt(itemEl.dataset.colIndex, 10),
+            itemIndex: parseInt(itemEl.dataset.itemIndex, 10),
+            itemId: itemEl.dataset.itemId
+          };
+          document.getElementById("contextDeleteElementRow").style.display = "block";
+        } else if (dropzoneEl) {
+          contextTarget = {
+            sectionId: dropzoneEl.dataset.sectionId,
+            colIndex: parseInt(dropzoneEl.dataset.colIndex, 10),
+            itemIndex: null,
+            itemId: null
+          };
+          document.getElementById("contextDeleteElementRow").style.display = "none";
+        } else if (secEl) {
+          contextTarget = {
+            sectionId: secEl.dataset.sectionId,
+            colIndex: 0,
+            itemIndex: null,
+            itemId: null
+          };
+          document.getElementById("contextDeleteElementRow").style.display = "none";
+        } else {
+          contextTarget = {
+            sectionId: gridSections.length > 0 ? gridSections[gridSections.length - 1].id : null,
+            colIndex: 0,
+            itemIndex: null,
+            itemId: null
+          };
+          document.getElementById("contextDeleteElementRow").style.display = "none";
+        }
+
+        showContextMenuAt(e.clientX, e.clientY, "Vložit do této pozice");
+      });
+
+      document.addEventListener("click", function() {
+        menu.style.display = "none";
+      });
+    }
+
+    function showContextMenuAt(x, y, headerText) {
+      var menu = document.getElementById("contextMenu");
+      document.getElementById("contextMenuHeader").innerText = headerText || "Vložit do emailu";
+      menu.style.display = "block";
+      if (x + 260 > window.innerWidth) x = window.innerWidth - 265;
+      if (y + 360 > window.innerHeight) y = window.innerHeight - 365;
+      menu.style.left = x + "px";
+      menu.style.top = y + "px";
+    }
+
+    function insertElementFromMenu(type) {
+      saveCurrentContentFromDOM();
+      var newItem = null;
+      var newId = "item_" + Date.now();
+
+      if (type === "text") {
+        newItem = { id: newId, type: "text", text: "Klikněte sem a začněte psát nový odstavec..." };
+      } else if (type === "heading") {
+        newItem = { id: newId, type: "heading", text: "Nový nadpis" };
+      } else if (type === "image") {
+        newItem = { id: newId, type: "image", url: DEFAULT_IMAGE_URL, caption: "" };
+      } else if (type === "button") {
+        newItem = { id: newId, type: "button", text: "Klikněte zde", url: "https://example.com", align: "center" };
+      } else if (type === "highlight") {
+        newItem = { id: newId, type: "highlight", text: "DŮLEŽITÉ: Zde napište zvýrazněné upozornění..." };
+      } else if (type === "divider") {
+        newItem = { id: newId, type: "divider" };
+      }
+
+      if (!newItem) return;
+
+      var sec = gridSections.find(function(s) { return s.id === contextTarget.sectionId; });
+      if (!sec) {
+        if (gridSections.length === 0) insertNewSection("1");
+        sec = gridSections[gridSections.length - 1];
+      }
+      var col = sec.cols[contextTarget.colIndex || 0] || sec.cols[0];
+
+      if (contextTarget.itemIndex !== null && contextTarget.itemIndex !== undefined) {
+        col.splice(contextTarget.itemIndex + 1, 0, newItem);
+      } else {
+        col.push(newItem);
+      }
+
+      renderGrid();
+    }
+
+    function insertNewSection(colCount) {
+      saveCurrentContentFromDOM();
+      var num = parseInt(colCount, 10) || 1;
+      var newCols = [];
+      for (var i = 0; i < num; i++) newCols.push([]);
+
+      if (num === 2) {
+        newCols[0].push({ id: "item_" + Date.now() + "_1", type: "image", url: DEFAULT_IMAGE_URL, caption: "" });
+        newCols[1].push({ id: "item_" + Date.now() + "_2", type: "text", text: "Text v pravém sloupci. Můžete ho libovolně přetáhnout doleva!" });
+      } else {
+        newCols[0].push({ id: "item_" + Date.now() + "_1", type: "text", text: "Nová sekce. Začněte psát nebo klikněte pravým pro přidání prvků." });
+      }
+
+      gridSections.push({
+        id: "sec_" + Date.now(),
+        hasBorder: true,
+        cols: newCols
+      });
+      renderGrid();
+    }
+
+    function deleteItem(secId, colIdx, itemIdx) {
+      saveCurrentContentFromDOM();
+      var sec = gridSections.find(function(s) { return s.id === secId; });
+      if (sec && sec.cols[colIdx]) {
+        sec.cols[colIdx].splice(itemIdx, 1);
+        renderGrid();
+      }
+    }
+
+    function deleteContextTargetItem() {
+      if (contextTarget.sectionId && contextTarget.itemIndex !== null) {
+        deleteItem(contextTarget.sectionId, contextTarget.colIndex, contextTarget.itemIndex);
+      }
+    }
+
+    function deleteSection(secId) {
+      if (!confirm("Opravdu smazat celou tuto sekci?")) return;
+      saveCurrentContentFromDOM();
+      gridSections = gridSections.filter(function(s) { return s.id !== secId; });
+      renderGrid();
+    }
+
+    function toggleSecBorder(secId) {
+      var sec = gridSections.find(function(s) { return s.id === secId; });
+      if (sec) {
+        sec.hasBorder = !sec.hasBorder;
+        renderGrid();
+      }
+    }
+
+    function editButtonUrl(itemId, e) {
+      e.preventDefault();
+      saveCurrentContentFromDOM();
+      findItemById(itemId, function(btnItem) {
+        var newUrl = prompt("Zadejte URL adresu pro tlačítko:", btnItem.url || "https://example.com");
+        if (newUrl) btnItem.url = newUrl.trim();
+      });
+    }
+
+    function collectCampaignData() {
+      saveCurrentContentFromDOM();
+      return {
+        subject: document.getElementById("subjectInput").value || "SHM Uhříněves - Kolovraty newsletter",
+        senderName: document.getElementById("senderNameInput").value || "SHM Uhříněves - Kolovraty",
+        headerTitle: document.getElementById("headerTitle").innerText,
+        greeting: document.getElementById("greetingText").innerText,
+        introText: document.getElementById("introText").innerText,
+        highlightBoxText: document.getElementById("highlightBox").innerText,
+        sections: gridSections,
+        signoff: document.getElementById("signoffText").innerText
+      };
+    }
+
+    function sendTestEmail() {
+      var recipient = document.getElementById("testEmailInput").value;
+      if (!recipient || recipient.indexOf("@") === -1) {
+        alert("Zadejte platný testovací email do pole nahoře!");
+        return;
+      }
+      var btn = document.getElementById("btnSendTest");
+      btn.innerHTML = '<span class="spinner"></span>';
+      btn.disabled = true;
+
+      var data = collectCampaignData();
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.innerHTML = '🧪 Test';
+          btn.disabled = false;
+          if (res.success) alert("✅ Testovací email byl odeslán na " + recipient);
+          else alert("❌ Chyba: " + res.error);
+        })
+        .withFailureHandler(function(err) {
+          btn.innerHTML = '🧪 Test';
+          btn.disabled = false;
+          alert("Chyba: " + err);
+        })
+        .sendTestEmail(data, recipient);
+    }
+
+    function launchCampaign() {
+      var data = collectCampaignData();
+      var isSimulation = document.getElementById("simulationMode").checked;
+
+      var confirmMsg = isSimulation ?
+        "Opravdu spustit v TESTOVACÍM REŽIMU?\n- Skupina 1 se odešle IHNED\n- Skupina 2 za 2 MINUTY." :
+        "Opravdu odeslat kampaň?\n- Skupina 1 se odešle IHNED\n- Skupina 2 automaticky za 24 HODIN A 30 MINUT.";
+
+      if (!confirm(confirmMsg)) return;
+
+      var btn = document.getElementById("btnLaunch");
+      btn.innerHTML = '<span class="spinner"></span> Odesílám...';
+      btn.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.innerHTML = '🚀 Odeslat kampaň';
+          btn.disabled = false;
+          if (res.success) {
+            alert("🎉 Kampaň úspěšně zahájena!\n\n" +
+                  "Odesláno Skupině 1: " + res.sentGroup1Count + " emailů\n" +
+                  "Skupina 2 naplánována na: " + res.scheduledTimeFormatted);
+            loadSystemInfo();
+          } else {
+            alert("❌ Chyba: " + res.error);
+          }
+        })
+        .withFailureHandler(function(err) {
+          btn.innerHTML = '🚀 Odeslat kampaň';
+          btn.disabled = false;
+          alert("Chyba při spuštění: " + err);
+        })
+        .launchCampaign(data, isSimulation);
+    }
+
+    function simulateGroup2Now() {
+      if (!confirm("Chcete nyní okamžitě odeslat Skupinu 2 a smazat naplánovaný trigger?")) return;
+      google.script.run
+        .withSuccessHandler(function() {
+          alert("✅ Skupina 2 byla odeslána!");
+          loadSystemInfo();
+        })
+        .runGroup2Now();
+    }
+
+    function cancelPendingTrigger() {
+      if (!confirm("Chcete zrušit naplánované odeslání Skupiny 2?")) return;
+      google.script.run
+        .withSuccessHandler(function() {
+          alert("Naplánování bylo zrušeno.");
+          loadSystemInfo();
+        })
+        .cancelScheduledTrigger();
+    }
+
+    function escapeHtml(text) {
+      if (!text) return "";
+      return text.toString()
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>

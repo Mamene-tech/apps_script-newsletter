@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Odhlášení z odběru</title>
+  <style>
+    :root {
+      --primary: #298DC0;
+      --primary-hover: #21739c;
+      --danger: #e53e3e;
+      --danger-hover: #c53030;
+      --text: #2d3748;
+      --text-muted: #718096;
+      --border: #e2e8f0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #f7fafc;
+      margin: 0;
+      padding: 40px 15px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 80vh;
+      color: var(--text);
+    }
+
+    .card {
+      background: #ffffff;
+      max-width: 520px;
+      width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      text-align: center;
+    }
+
+    .header {
+      background-color: var(--primary);
+      padding: 26px;
+      color: #ffffff;
+    }
+    .header h2 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    .body {
+      padding: 34px 28px;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .email-badge {
+      display: inline-block;
+      background: #edf2f7;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 700;
+      color: #2d3748;
+      font-size: 16px;
+      margin: 15px 0 24px 0;
+      word-break: break-all;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+    .btn-danger {
+      background: var(--danger);
+      color: #ffffff;
+    }
+    .btn-danger:hover {
+      background: var(--danger-hover);
+    }
+    .btn-secondary {
+      background: #edf2f7;
+      color: var(--text);
+      margin-left: 10px;
+    }
+    .btn-secondary:hover {
+      background: #e2e8f0;
+    }
+
+    .spinner {
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top: 3px solid #ffffff;
+      width: 14px;
+      height: 14px;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="header">
+      <h2>Newsletter</h2>
+    </div>
+
+    <!-- STEP 1: Confirmation Question (Anti-Bot Protection) -->
+    <div class="body" id="stepConfirm">
+      <h3 style="margin-top: 0; color: #2d3748;">Potvrzení odhlášení z odběru</h3>
+      <p style="color: var(--text-muted); margin-bottom: 5px;">
+        Opravdu si přejete odhlásit následující emailovou adresu ze zasílání newsletteru?
+      </p>
+
+      <div class="email-badge"><?= email ?></div>
+
+      <div style="margin-top: 10px;">
+        <button class="btn btn-danger" id="btnConfirm" onclick="performUnsubscribe()">
+          Ano, odhlásit z odběru
+        </button>
+      </div>
+
+      <p style="color: #a0aec0; font-size: 12px; margin-top: 24px;">
+        Toto dvoukrokové ověření chrání před nechtěným odhlášením antivirovými filtry.
+      </p>
+    </div>
+
+    <!-- STEP 2: Success Confirmation -->
+    <div class="body" id="stepSuccess" style="display: none;">
+      <div style="font-size: 44px; margin-bottom: 12px;">✅</div>
+      <h3 style="color: #2d3748; margin-top: 0;">Byli jste úspěšně odhlášeni</h3>
+      <p>
+        Váš email byl úspěšně vyřazen ze seznamu příjemců a v databázi označen stavem <strong>ODHLÁŠENO</strong>:
+      </p>
+      <div class="email-badge"><?= email ?></div>
+      <p style="color: var(--text-muted); font-size: 14px;">
+        Již od nás nebudete dostávat žádné další zprávy. Tuto stránku můžete nyní bezpečně zavřít.
+      </p>
+    </div>
+
+  </div>
+
+  <script>
+    var recipientEmail = "<?= email ?>";
+
+    function performUnsubscribe() {
+      if (!recipientEmail) {
+        alert("Chyba: Chybí emailová adresa.");
+        return;
+      }
+
+      var btn = document.getElementById("btnConfirm");
+      btn.innerHTML = '<span class="spinner"></span> Odhlašuji...';
+      btn.disabled = true;
+
+      // Call Google Apps Script server function
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res && res.success) {
+            document.getElementById("stepConfirm").style.display = "none";
+            document.getElementById("stepSuccess").style.display = "block";
+          } else {
+            btn.innerHTML = 'Ano, odhlásit z odběru';
+            btn.disabled = false;
+            alert("Chyba: " + (res ? res.error : "Neznámá chyba"));
+          }
+        })
+        .withFailureHandler(function(err) {
+          btn.innerHTML = 'Ano, odhlásit z odběru';
+          btn.disabled = false;
+          alert("Chyba spojení: " + err);
+        })
+        .confirmUnsubscribe(recipientEmail);
+    }
+  </script>
+</body>
+</html>

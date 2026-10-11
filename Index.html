@@ -741,25 +741,27 @@
 
     <!-- Actions -->
     <div class="header-actions">
-      <input type="text" id="testEmailInput" placeholder="Testovací email..." style="padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; width: 150px;">
-      <button class="btn btn-secondary" id="btnSendTest" onclick="sendTestEmail()">🧪 Test</button>
+      <input type="text" id="testEmailInput" placeholder="Testovací email..." style="padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; width: 155px;">
+      <button class="btn btn-secondary" id="btnSendTest" onclick="sendTestEmail()" title="Odešle 1 zkušební email na zadanou adresu">🧪 Test 1 email</button>
       
-      <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer;">
-        <input type="checkbox" id="simulationMode"> ⏱️ Simulace 2 min
-      </label>
+      <button class="btn btn-secondary" id="btnDryRun" onclick="startDryRun()" style="background: #f3e8ff; color: #6b21a8; border: 1px solid #d8b4fe;" title="Bezpečná simulace na celém seznamu bez odesílání emailů příjemcům">
+        🧪 Spustit Dry Run
+      </button>
 
-      <button class="btn btn-primary" id="btnLaunch" onclick="launchCampaign()">🚀 Odeslat kampaň</button>
+      <button class="btn btn-primary" id="btnLaunch" onclick="startLiveCampaign()">
+        🚀 Odeslat ostrou kampaň
+      </button>
     </div>
   </div>
 
-  <!-- Simulation Active Banner -->
+  <!-- Campaign / Simulation Active Banner -->
   <div id="triggerBanner" class="banner" style="display: none;">
     <div>
-      <strong>⏱️ Skupina 2 je naplánována!</strong>
+      <strong id="triggerBannerTitle">⏱️ Skupina 2 je naplánována!</strong>
       <span id="triggerTimeText" style="margin-left: 6px;"></span>
     </div>
     <div style="display: flex; gap: 8px;">
-      <button class="btn btn-sm btn-primary" onclick="simulateGroup2Now()">⚡ Spustit Skupinu 2 hned (Simulace)</button>
+      <button class="btn btn-sm btn-primary" id="btnTriggerRunNow" onclick="runGroup2Now()">⚡ Spustit Skupinu 2 hned</button>
       <button class="btn btn-sm btn-danger" onclick="cancelPendingTrigger()">Zrušit</button>
     </div>
   </div>
@@ -809,8 +811,8 @@
     <div class="canvas-body">
       
       <!-- Greeting -->
-      <div class="canvas-greeting" contenteditable="true" id="greetingText" title="Klikněte pro úpravu">
-        Dobrý den,
+      <div class="canvas-greeting" contenteditable="true" id="greetingText" title="Klikněte pro úpravu (můžete použít @jméno pro vložení jména z tabulky)">
+        Ahoj @jméno,
       </div>
 
       <!-- Intro Paragraph 1 -->
@@ -1034,12 +1036,46 @@
           document.getElementById("g2CountVal").innerText = info.group2Count;
           document.getElementById("unsubCountVal").innerText = info.unsubscribedCount;
 
+          var banner = document.getElementById("triggerBanner");
+          var bannerTitle = document.getElementById("triggerBannerTitle");
+          var timeText = document.getElementById("triggerTimeText");
+          var btnRunNow = document.getElementById("btnTriggerRunNow");
+
           if (info.hasPendingGroup2Trigger && info.activeCampaign) {
-            document.getElementById("triggerBanner").style.display = "flex";
-            document.getElementById("triggerTimeText").innerText = 
-              "Naplánováno na: " + new Date(info.activeCampaign.scheduledTime).toLocaleString("cs-CZ");
+            banner.style.display = "flex";
+            var schedTime = info.activeCampaign.scheduledTime ? new Date(info.activeCampaign.scheduledTime).toLocaleString("cs-CZ") : "";
+            
+            if (info.activeCampaign.isDryRun) {
+              banner.style.background = "#f3e8ff";
+              banner.style.borderColor = "#d8b4fe";
+              banner.style.color = "#581c87";
+              bannerTitle.innerText = "🧪 [DRY RUN] Skupina 2 naplánována:";
+              timeText.innerText = schedTime + " (žádné emaily nebyly odeslány příjemcům)";
+              if (btnRunNow) btnRunNow.innerText = "⚡ Dokončit Skupinu 2 hned (Dry Run)";
+            } else if (info.activeCampaign.status && info.activeCampaign.status.indexOf("PAUSED_QUOTA") !== -1) {
+              banner.style.background = "#fff5f5";
+              banner.style.borderColor = "#fed7d7";
+              banner.style.color = "#9b2c2c";
+              bannerTitle.innerText = "⚠️ [POZASTAVENO PRO KVÓTU]";
+              timeText.innerText = "Denní kvóta Google vyčerpána. Automatická kontrola: " + schedTime;
+              if (btnRunNow) btnRunNow.innerText = "🔄 Zkontrolovat kvótu nyní";
+            } else if (info.activeCampaign.status && info.activeCampaign.status.indexOf("PAUSED_TIMEOUT") !== -1) {
+              banner.style.background = "#ebf8ff";
+              banner.style.borderColor = "#bee3f8";
+              banner.style.color = "#2c5282";
+              bannerTitle.innerText = "⏱️ [WATCHDOG PRODLOUŽENÍ]";
+              timeText.innerText = "Pokračování v další dávce: " + schedTime;
+              if (btnRunNow) btnRunNow.innerText = "⚡ Pokračovat hned";
+            } else {
+              banner.style.background = "#fffaf0";
+              banner.style.borderColor = "#feebc8";
+              banner.style.color = "#7b341e";
+              bannerTitle.innerText = "⏱️ Skupina 2 je naplánována:";
+              timeText.innerText = schedTime;
+              if (btnRunNow) btnRunNow.innerText = "⚡ Spustit Skupinu 2 hned";
+            }
           } else {
-            document.getElementById("triggerBanner").style.display = "none";
+            banner.style.display = "none";
           }
         })
         .getSystemInfo();
@@ -1770,13 +1806,69 @@
         .sendTestEmail(data, recipient);
     }
 
-    function launchCampaign() {
+    function startDryRun() {
       var data = collectCampaignData();
-      var isSimulation = document.getElementById("simulationMode").checked;
+      var confirmMsg = 
+        "🧪 Spustit DRY RUN (Bezpečnou simulaci na celém seznamu)?\n\n" +
+        "• ŽÁDNÝM příjemcům NEBUDOU odeslány emaily.\n" +
+        "• Zkontroluje se celý seznam (~2 500 kontaktů), syntaxe adres a odhlášení.\n" +
+        "• Vygenerují se kompletní HTML šablony a ověří se výkon.\n" +
+        "• V tabulce se řádky označí fialově 'DRY RUN: OK'.\n" +
+        "• Skupina 2 se naplánuje za 2 minuty (můžete ji také spustit ihned tlačítkem).\n" +
+        "• Na Váš administrátorský email dorazí 1 vzorek pro kontrolu a závěrečný audit report.";
 
-      var confirmMsg = isSimulation ?
-        "Opravdu spustit v TESTOVACÍM REŽIMU?\n- Skupina 1 se odešle IHNED\n- Skupina 2 za 2 MINUTY." :
-        "Opravdu odeslat kampaň?\n- Skupina 1 se odešle IHNED\n- Skupina 2 automaticky za 24 HODIN A 30 MINUT.";
+      if (!confirm(confirmMsg)) return;
+
+      var btn = document.getElementById("btnDryRun");
+      btn.innerHTML = '<span class="spinner"></span> Běží Dry Run...';
+      btn.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.innerHTML = '🧪 Spustit Dry Run';
+          btn.disabled = false;
+          if (res.success) {
+            alert("🧪 DRY RUN zahájen!\n\n" +
+                  "Zkontrolováno Skupina 1: " + res.sentGroup1Count + " kontaktů\n" +
+                  "Skupina 2 naplánována na: " + res.scheduledTimeFormatted + "\n\n" +
+                  "(Můžete sledovat fialové označení v tabulce nebo v banneru nahoře)");
+            loadSystemInfo();
+          } else {
+            alert("❌ Chyba: " + res.error);
+          }
+        })
+        .withFailureHandler(function(err) {
+          btn.innerHTML = '🧪 Spustit Dry Run';
+          btn.disabled = false;
+          alert("Chyba při spuštění Dry Run: " + err);
+        })
+        .launchCampaign(data, { isDryRun: true, sendSamplePreview: true });
+    }
+
+    function startLiveCampaign() {
+      var data = collectCampaignData();
+      
+      var delayPrompt = prompt(
+        "🚀 OSTRÉ ODESLÁNÍ NEWSLETTERU\n\n" +
+        "Skupina 1 se začne odesílat IHNED.\n" +
+        "Zadejte počet hodin pro prodlevu před Skupinou 2:\n" +
+        "(Doporučeno: 24.5 = 24 hodin a 30 minut pro plné obnovení Google kvóty)",
+        "24.5"
+      );
+
+      if (delayPrompt === null) return; // user cancelled
+
+      var delayHours = parseFloat(delayPrompt.replace(",", "."));
+      if (isNaN(delayHours) || delayHours <= 0) {
+        alert("Zadejte platné kladné číslo pro počet hodin (např. 24.5)!");
+        return;
+      }
+
+      var confirmMsg = 
+        "Opravdu ODESLAT OSTRÝ NEWSLETTER?\n\n" +
+        "• Skupina 1 se odešle IHNED\n" +
+        "• Skupina 2 se odešle automaticky za " + delayHours + " hodin.\n" +
+        "• V případě vyčerpání kvóty Google se skript bezpečně pozastaví a automaticky počká na uvolnění.";
 
       if (!confirm(confirmMsg)) return;
 
@@ -1786,10 +1878,10 @@
 
       google.script.run
         .withSuccessHandler(function(res) {
-          btn.innerHTML = '🚀 Odeslat kampaň';
+          btn.innerHTML = '🚀 Odeslat ostrou kampaň';
           btn.disabled = false;
           if (res.success) {
-            alert("🎉 Kampaň úspěšně zahájena!\n\n" +
+            alert("🎉 Ostrá kampaň úspěšně zahájena!\n\n" +
                   "Odesláno Skupině 1: " + res.sentGroup1Count + " emailů\n" +
                   "Skupina 2 naplánována na: " + res.scheduledTimeFormatted);
             loadSystemInfo();
@@ -1798,18 +1890,18 @@
           }
         })
         .withFailureHandler(function(err) {
-          btn.innerHTML = '🚀 Odeslat kampaň';
+          btn.innerHTML = '🚀 Odeslat ostrou kampaň';
           btn.disabled = false;
           alert("Chyba při spuštění: " + err);
         })
-        .launchCampaign(data, isSimulation);
+        .launchCampaign(data, { isDryRun: false, delayHours: delayHours });
     }
 
-    function simulateGroup2Now() {
-      if (!confirm("Chcete nyní okamžitě odeslat Skupinu 2 a smazat naplánovaný trigger?")) return;
+    function runGroup2Now() {
+      if (!confirm("Chcete nyní okamžitě spustit Skupinu 2 a vyřídit naplánovaný trigger?")) return;
       google.script.run
         .withSuccessHandler(function() {
-          alert("✅ Skupina 2 byla odeslána!");
+          alert("✅ Skupina 2 byla spuštěna!");
           loadSystemInfo();
         })
         .runGroup2Now();

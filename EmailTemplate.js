@@ -13,7 +13,47 @@ var EmailTemplate = {
     var primaryColor = "#298DC0";
     var recipient = recipientEmail || "vas-email@domena.cz";
     var name = recipientName ? recipientName.trim() : "";
-    var greeting = name ? ("Dobrý den " + name + ",") : (data.greeting || "Dobrý den,");
+
+    // Helper to replace personalization placeholders
+    function replacePlaceholders(text) {
+      if (!text) return "";
+      return text
+        .replace(/@jméno|@jmeno|@name|\{jméno\}|\{jmeno\}|\{name\}|\[jméno\]|\[jmeno\]|\[name\]/gi, name || "")
+        .replace(/@email|\{email\}|\[email\]/gi, recipient || "");
+    }
+
+    // Dynamic Greeting Logic: strictly respects user's custom greeting text
+    var rawGreeting = (data.greeting || "Dobrý den @jméno,").trim();
+    var greeting = "";
+    var hasPlaceholder = /@jméno|@jmeno|@name|\{jméno\}|\{jmeno\}|\{name\}|\[jméno\]|\[jmeno\]|\[name\]/i.test(rawGreeting);
+
+    if (hasPlaceholder) {
+      if (name) {
+        greeting = replacePlaceholders(rawGreeting);
+      } else {
+        // Recipient has no name in sheet: clean up placeholder cleanly
+        greeting = rawGreeting
+          .replace(/@jméno|@jmeno|@name|\{jméno\}|\{jmeno\}|\{name\}|\[jméno\]|\[jmeno\]|\[name\]/gi, "")
+          .replace(/,\s*,/g, ",")
+          .replace(/\s+,/g, ",")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+    } else {
+      // User did not write @jmeno explicitly
+      if (name) {
+        if (rawGreeting.indexOf(",") !== -1) {
+          var commaIdx = rawGreeting.indexOf(",");
+          var before = rawGreeting.substring(0, commaIdx).trim();
+          var after = rawGreeting.substring(commaIdx + 1).trim();
+          greeting = before + " " + name + (after ? (", " + after) : ",");
+        } else {
+          greeting = rawGreeting + " " + name;
+        }
+      } else {
+        greeting = rawGreeting;
+      }
+    }
 
     var unsubUrl = webAppUrl ? 
       (webAppUrl + (webAppUrl.indexOf("?") === -1 ? "?" : "&") + "action=unsub&email=" + encodeURIComponent(recipient)) : "#";
@@ -195,7 +235,7 @@ var EmailTemplate = {
       '<td class="mobile-padding" style="padding: 34px;">',
       
       '<p style="color: #2d3748; font-size: 16px; line-height: 1.6; margin: 0 0 14px 0; font-weight: 600;">' + greeting + '</p>',
-      data.introText ? ('<div style="color: #4a5568; font-size: 15px; line-height: 1.65; margin-bottom: 22px;">' + data.introText.replace(/\n/g, '<br>') + '</div>') : '',
+      data.introText ? ('<div style="color: #4a5568; font-size: 15px; line-height: 1.65; margin-bottom: 22px;">' + replacePlaceholders(data.introText).replace(/\n/g, '<br>') + '</div>') : '',
       
       data.highlightBoxText ? [
         '<div style="background-color: #f4f8fb; border-left: 4px solid ' + primaryColor + '; padding: 15px 20px; margin: 20px 0; border-radius: 4px; font-size: 15px; color: #2d3748; line-height: 1.55;">',

@@ -12,63 +12,38 @@ var EmailTemplate = {
   buildHtml: function(data, recipientEmail, recipientName, webAppUrl) {
     var primaryColor = "#298DC0";
     var recipient = recipientEmail || "vas-email@domena.cz";
-    var name = recipientName ? recipientName.trim() : "";
 
-    // Helper to replace personalization placeholders
-    function replacePlaceholders(text) {
-      if (!text) return "";
-      return text
-        .replace(/@jméno|@jmeno|@name|\{jméno\}|\{jmeno\}|\{name\}|\[jméno\]|\[jmeno\]|\[name\]/gi, name || "")
-        .replace(/@email|\{email\}|\[email\]/gi, recipient || "");
+    // Text is user-authored HTML (formatting from the editor); no personalization placeholders
+    function val(text) {
+      return text ? String(text) : "";
+    }
+    function esc(text) {
+      return String(text || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
 
-    // Dynamic Greeting Logic: strictly respects user's custom greeting text
-    var rawGreeting = (data.greeting || "Dobrý den @jméno,").trim();
-    var greeting = "";
-    var hasPlaceholder = /@jméno|@jmeno|@name|\{jméno\}|\{jmeno\}|\{name\}|\[jméno\]|\[jmeno\]|\[name\]/i.test(rawGreeting);
-
-    if (hasPlaceholder) {
-      if (name) {
-        greeting = replacePlaceholders(rawGreeting);
-      } else {
-        // Recipient has no name in sheet: clean up placeholder cleanly
-        greeting = rawGreeting
-          .replace(/@jméno|@jmeno|@name|\{jméno\}|\{jmeno\}|\{name\}|\[jméno\]|\[jmeno\]|\[name\]/gi, "")
-          .replace(/,\s*,/g, ",")
-          .replace(/\s+,/g, ",")
-          .replace(/\s+/g, " ")
-          .trim();
+    var customUnsubUrl = (data && data.customUnsubUrl) ? data.customUnsubUrl : 
+                         (typeof CONFIG !== "undefined" && CONFIG.CUSTOM_UNSUB_URL ? CONFIG.CUSTOM_UNSUB_URL : "");
+    var unsubUrl = "#";
+    if (customUnsubUrl) {
+      unsubUrl = customUnsubUrl + (customUnsubUrl.indexOf("?") === -1 ? "?" : "&") + "email=" + encodeURIComponent(recipient);
+      if (webAppUrl) {
+        unsubUrl += "&api=" + encodeURIComponent(webAppUrl);
       }
-    } else {
-      // User did not write @jmeno explicitly
-      if (name) {
-        if (rawGreeting.indexOf(",") !== -1) {
-          var commaIdx = rawGreeting.indexOf(",");
-          var before = rawGreeting.substring(0, commaIdx).trim();
-          var after = rawGreeting.substring(commaIdx + 1).trim();
-          greeting = before + " " + name + (after ? (", " + after) : ",");
-        } else {
-          greeting = rawGreeting + " " + name;
-        }
-      } else {
-        greeting = rawGreeting;
-      }
+    } else if (webAppUrl) {
+      unsubUrl = webAppUrl + (webAppUrl.indexOf("?") === -1 ? "?" : "&") + "action=unsub&email=" + encodeURIComponent(recipient);
     }
-
-    var unsubUrl = webAppUrl ? 
-      (webAppUrl + (webAppUrl.indexOf("?") === -1 ? "?" : "&") + "action=unsub&email=" + encodeURIComponent(recipient)) : "#";
 
     // Helper: Render individual content element
     function renderElement(el) {
       if (!el) return "";
       
       if (el.type === "heading") {
-        return '<h3 style="color: ' + primaryColor + '; margin: 0 0 10px 0; font-size: 19px; font-weight: 700; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif;">' + (el.text || "") + '</h3>';
+        return '<h3 style="color: ' + primaryColor + '; margin: 0 0 10px 0; font-size: 19px; font-weight: 700; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif;">' + val(el.text || "").replace(/\n/g, '<br>') + '</h3>';
       }
       
       if (el.type === "text") {
         var align = el.align || "left";
-        var textHtml = (el.text || el.html || "").replace(/\n/g, '<br>');
+        var textHtml = val(el.text || el.html || "").replace(/\n/g, '<br>');
         return '<div style="color: #4a5568; font-size: 15px; line-height: 1.65; margin-bottom: 12px; text-align: ' + align + '; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif;">' + textHtml + '</div>';
       }
       
@@ -79,7 +54,7 @@ var EmailTemplate = {
         // STRICTLY OPTIONAL CAPTION: Only render if not empty!
         var rawCap = (el.caption || el.imageCaption || "").trim();
         var captionTag = rawCap !== "" ? 
-          ('<div style="font-size: 12px; color: #718096; margin-top: 6px; font-style: italic; text-align: center;">' + rawCap + '</div>') : "";
+          ('<div style="font-size: 12px; color: #718096; margin-top: 6px; font-style: italic; text-align: center;">' + val(rawCap) + '</div>') : "";
 
         return [
           '<div style="text-align: center; margin: 10px 0;">',
@@ -93,8 +68,8 @@ var EmailTemplate = {
         var btnAlign = el.align || "center";
         return [
           '<div style="text-align: ' + btnAlign + '; margin: 22px 0;">',
-          '<a href="' + (el.url || "#") + '" target="_blank" style="background-color: ' + primaryColor + '; color: #ffffff; text-decoration: none; padding: 13px 26px; font-size: 15px; font-weight: 700; border-radius: 6px; display: inline-block; box-shadow: 0 2px 4px rgba(41,141,192,0.25); font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif;">',
-          (el.text || "Klikněte zde"),
+          '<a href="' + esc(el.url || "#") + '" target="_blank" style="background-color: ' + primaryColor + '; color: #ffffff; text-decoration: none; padding: 13px 26px; font-size: 15px; font-weight: 700; border-radius: 6px; display: inline-block; box-shadow: 0 2px 4px rgba(41,141,192,0.25); font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif;">',
+          esc(el.text || "Klikněte zde"),
           '</a>',
           '</div>'
         ].join('');
@@ -103,7 +78,7 @@ var EmailTemplate = {
       if (el.type === "highlight") {
         return [
           '<div style="background-color: #f4f8fb; border-left: 4px solid ' + primaryColor + '; padding: 15px 20px; margin: 16px 0; border-radius: 4px; font-size: 15px; color: #2d3748; line-height: 1.55; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif;">',
-          (el.text || el.html || "").replace(/\n/g, '<br>'),
+          val(el.text || el.html || "").replace(/\n/g, '<br>'),
           '</div>'
         ].join('');
       }
@@ -138,8 +113,8 @@ var EmailTemplate = {
               colContent += renderElement(sec.cols[0][c]);
             }
             sectionsHtml += [
-              '<table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 24px 0; ' + borderStyle + '">',
-              '<tr><td style="' + (secBorder ? 'padding: 24px;' : 'padding: 5px;') + '">',
+              '<table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: ' + (secBorder ? '24px 0' : '8px 0') + '; ' + borderStyle + '">',
+              '<tr><td style="' + (secBorder ? 'padding: 24px;' : 'padding: 4px 0;') + '">',
               colContent,
               '</td></tr></table>'
             ].join('');
@@ -156,8 +131,8 @@ var EmailTemplate = {
             }
 
             sectionsHtml += [
-              '<table border="0" cellpadding="0" cellspacing="0" width="100%" class="responsive-card" style="margin: 24px 0; ' + borderStyle + '">',
-              '<tr><td style="' + (secBorder ? 'padding: 24px;' : 'padding: 5px;') + '">',
+              '<table border="0" cellpadding="0" cellspacing="0" width="100%" class="responsive-card" style="margin: ' + (secBorder ? '24px 0' : '8px 0') + '; ' + borderStyle + '">',
+              '<tr><td style="' + (secBorder ? 'padding: 24px;' : 'padding: 4px 0;') + '">',
               '  <table border="0" cellpadding="0" cellspacing="0" width="100%">',
               '  <tr>',
               '    <td class="stack-column" width="48%" valign="top" style="padding-bottom: 10px;">' + leftContent + '</td>',
@@ -178,8 +153,8 @@ var EmailTemplate = {
             for (var k = 0; k < sec.cols[2].length; k++) col3Html += renderElement(sec.cols[2][k]);
 
             sectionsHtml += [
-              '<table border="0" cellpadding="0" cellspacing="0" width="100%" class="responsive-card" style="margin: 24px 0; ' + borderStyle + '">',
-              '<tr><td style="' + (secBorder ? 'padding: 24px;' : 'padding: 5px;') + '">',
+              '<table border="0" cellpadding="0" cellspacing="0" width="100%" class="responsive-card" style="margin: ' + (secBorder ? '24px 0' : '8px 0') + '; ' + borderStyle + '">',
+              '<tr><td style="' + (secBorder ? 'padding: 24px;' : 'padding: 4px 0;') + '">',
               '  <table border="0" cellpadding="0" cellspacing="0" width="100%">',
               '  <tr>',
               '    <td class="stack-column-3" width="31%" valign="top" style="padding-bottom: 10px;">' + col1Html + '</td>',
@@ -234,21 +209,8 @@ var EmailTemplate = {
       '<tr>',
       '<td class="mobile-padding" style="padding: 34px;">',
       
-      '<p style="color: #2d3748; font-size: 16px; line-height: 1.6; margin: 0 0 14px 0; font-weight: 600;">' + greeting + '</p>',
-      data.introText ? ('<div style="color: #4a5568; font-size: 15px; line-height: 1.65; margin-bottom: 22px;">' + replacePlaceholders(data.introText).replace(/\n/g, '<br>') + '</div>') : '',
-      
-      data.highlightBoxText ? [
-        '<div style="background-color: #f4f8fb; border-left: 4px solid ' + primaryColor + '; padding: 15px 20px; margin: 20px 0; border-radius: 4px; font-size: 15px; color: #2d3748; line-height: 1.55;">',
-        data.highlightBoxText.replace(/\n/g, '<br>'),
-        '</div>'
-      ].join('') : '',
-
-      '<div style="border-top: 1px solid #e2e8f0; margin: 26px 0;"></div>',
-
       sectionsHtml,
 
-      data.signoff ? ('<div style="color: #4a5568; font-size: 15px; line-height: 1.65; margin-top: 28px;">' + data.signoff.replace(/\n/g, '<br>') + '</div>') : '',
-      
       '<div style="border-top: 1px solid #e2e8f0; margin: 34px 0 16px 0;"></div>',
       '<div style="text-align: center; color: #a0aec0; font-size: 12px; line-height: 1.5;">',
       'Tento email byl odeslán na adresu <strong>' + recipient + '</strong>.<br>',

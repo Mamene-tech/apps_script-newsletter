@@ -4,6 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Newsletter Visual Studio</title>
+
+  <!-- ======================================================== -->
+  <!-- GOOGLE APPS SCRIPT API ODKAZ (NASAZENÍ /exec)           -->
+  <!-- Sem do uvozovek vložte URL Vašeho nasazení z Apps Script: -->
+  <!-- ======================================================== -->
+  <script>
+    var CONFIG_API_URL = ""; // Např: "https://script.google.com/macros/s/AKfycb.../exec"
+  </script>
   <style>
     :root {
       --primary: #298DC0;
@@ -339,6 +347,59 @@
       gap: 4px;
     }
     .sec-drag-handle:active { cursor: grabbing; }
+
+    .grid-section.no-border {
+      background: transparent;
+      border: 1px dashed transparent;
+      box-shadow: none;
+      padding: 14px 24px;
+      margin: 14px 0;
+    }
+    .grid-section.no-border:hover { border-color: var(--border); box-shadow: none; }
+
+    /* Formatting toolbar */
+    .format-bar {
+      flex-basis: 100%;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .fmt-btn {
+      min-width: 30px;
+      height: 30px;
+      border: 1px solid var(--border);
+      background: #ffffff;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text);
+    }
+    .fmt-btn:hover { background: #f0f7fb; border-color: var(--primary); color: var(--primary); }
+    .fmt-select {
+      height: 30px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-size: 13px;
+      background: #ffffff;
+      padding: 0 4px;
+    }
+    .fmt-color {
+      width: 30px; height: 30px; padding: 1px;
+      border: 1px solid var(--border); border-radius: 5px; background: #fff; cursor: pointer;
+    }
+    .fmt-label { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; }
+    .fmt-sep { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
+    .btn-url-hint {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: -8px;
+      word-break: break-all;
+    }
+    .grid-item a.rt-link, .grid-item [contenteditable] a { color: var(--primary); text-decoration: underline; }
 
     /* Columns */
     .cols-wrapper {
@@ -725,6 +786,36 @@
     </div>
   </div>
 
+
+
+  <!-- Duplicates Log Modal -->
+  <div id="dupLogModal" class="modal-overlay" style="display: none;" onclick="if(event.target===this) closeDupLog()">
+    <div class="modal" style="max-width: 1000px; text-align: left; max-height: 88vh; display: flex; flex-direction: column;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h2 id="dupLogTitle" style="margin: 0; color: var(--primary); font-size: 20px;">📜 Log smazaných duplicit</h2>
+        <button class="btn btn-secondary" onclick="closeDupLog()">✕ Zavřít</button>
+      </div>
+      <div id="dupLogSummary" style="font-size: 14px; margin-bottom: 10px; line-height: 1.6;"></div>
+      <div style="overflow: auto; border: 1px solid var(--border); border-radius: 6px; flex: 1;">
+        <table style="border-collapse: collapse; width: 100%; font-size: 13px;">
+          <thead>
+            <tr style="background: #edf2f7; text-align: left; position: sticky; top: 0;">
+              <th style="padding: 8px;">Čas</th>
+              <th style="padding: 8px;">Email</th>
+              <th style="padding: 8px;">Jméno</th>
+              <th style="padding: 8px;">Smazáno z</th>
+              <th style="padding: 8px;">Důvod</th>
+              <th style="padding: 8px;">Řádek</th>
+              <th style="padding: 8px;">Ponecháno v</th>
+            </tr>
+          </thead>
+          <tbody id="dupLogBody"></tbody>
+        </table>
+      </div>
+      <p style="color: var(--text-muted); font-size: 12px; margin: 10px 0 0 0;">Kompletní historie je uložena v Google Tabulce v listu „Log duplicit“.</p>
+    </div>
+  </div>
+
   <!-- Top Sticky Navigation Bar -->
   <div class="top-bar">
     <div class="brand">
@@ -741,16 +832,47 @@
 
     <!-- Actions -->
     <div class="header-actions">
-      <input type="text" id="testEmailInput" placeholder="Testovací email..." style="padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; width: 155px;">
-      <button class="btn btn-secondary" id="btnSendTest" onclick="sendTestEmail()" title="Odešle 1 zkušební email na zadanou adresu">🧪 Test 1 email</button>
+      <input type="text" id="testEmailInput" placeholder="Testovací email..." style="padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; width: 140px;">
+      <button class="btn btn-secondary" id="btnSendTest" onclick="sendTestEmail()" title="Odešle 1 zkušební email na zadanou adresu">🧪 Test</button>
       
       <button class="btn btn-secondary" id="btnDryRun" onclick="startDryRun()" style="background: #f3e8ff; color: #6b21a8; border: 1px solid #d8b4fe;" title="Bezpečná simulace na celém seznamu bez odesílání emailů příjemcům">
-        🧪 Spustit Dry Run
+        🧪 Dry Run
+      </button>
+
+      <button class="btn btn-secondary" onclick="triggerRemoveDuplicates()" title="Najde a smaže duplicity v Group 1 a 2" style="padding: 7px 10px;">
+        🧹 Duplicity
+      </button>
+
+      <button class="btn btn-secondary" onclick="openDupLog()" title="Zobrazí, které kontakty byly smazány jako duplicity" style="padding: 7px 10px;">
+        📜 Log
       </button>
 
       <button class="btn btn-primary" id="btnLaunch" onclick="startLiveCampaign()">
-        🚀 Odeslat ostrou kampaň
+        🚀 Odeslat kampaň
       </button>
+    </div>
+
+    <!-- Text formatting toolbar (applies to selected text in any text, heading or highlight block) -->
+    <div class="format-bar" id="formatBar">
+      <span class="fmt-label">Formát textu:</span>
+      <select class="fmt-select" id="fmtSize" title="Velikost písma">
+        <option value="">Velikost</option>
+        <option>12</option><option>14</option><option>15</option><option>16</option>
+        <option>18</option><option>20</option><option>24</option><option>28</option>
+        <option>32</option><option>40</option>
+      </select>
+      <button type="button" class="fmt-btn" id="fmtBold" title="Tučně (Ctrl+B)"><b>B</b></button>
+      <button type="button" class="fmt-btn" id="fmtItalic" title="Kurzíva (Ctrl+I)"><i>I</i></button>
+      <button type="button" class="fmt-btn" id="fmtUnderline" title="Podtržení (Ctrl+U)"><u>U</u></button>
+      <button type="button" class="fmt-btn" id="fmtStrike" title="Přeškrtnutí"><s>S</s></button>
+      <span class="fmt-sep"></span>
+      <span class="fmt-label">Barva:</span>
+      <input type="color" class="fmt-color" id="fmtColor" value="#298DC0" title="Barva textu">
+      <span class="fmt-sep"></span>
+      <button type="button" class="fmt-btn" id="fmtLink" title="Vložit odkaz do označeného textu">🔗 Odkaz</button>
+      <button type="button" class="fmt-btn" id="fmtUnlink" title="Odebrat odkaz">⛓️‍💥</button>
+      <button type="button" class="fmt-btn" id="fmtClear" title="Vymazat formátování">Tx ✕</button>
+      <span style="font-size: 11px; color: var(--text-muted); margin-left: 6px;">Nejdřív označte text myší.</span>
     </div>
   </div>
 
@@ -794,7 +916,7 @@
 
   <!-- Instruction Hint -->
   <div class="hint-banner">
-    💡 <strong>Tip:</strong> Text označíte myší normálně. Prvky i celé sekce přetahujte za úchyt <strong>⠿</strong>. Kliknutím pravým tlačítkem myši vložíte nové prvky.
+    💡 <strong>Tip:</strong> Text označíte myší a formátujete v liště nahoře. Prvky i celé sekce přetahujte za úchyt <strong>⠿</strong>. Kliknutím pravým tlačítkem myši vložíte nové prvky.
   </div>
 
   <!-- ============================================= -->
@@ -810,32 +932,8 @@
     <!-- Body -->
     <div class="canvas-body">
       
-      <!-- Greeting -->
-      <div class="canvas-greeting" contenteditable="true" id="greetingText" title="Klikněte pro úpravu (můžete použít @jméno pro vložení jména z tabulky)">
-        Ahoj @jméno,
-      </div>
-
-      <!-- Intro Paragraph 1 -->
-      <div class="canvas-intro" contenteditable="true" id="introText" title="Klikněte pro úpravu">
-        Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Fusce wisi. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Duis risus. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Integer lacinia. In laoreet, magna id viverra tincidunt, sem odio bibendum justo, vel imperdiet sapien wisi sed libero. Duis pulvinar. Donec quis nibh at felis congue commodo. Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et molestiae non recusandae. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Donec ipsum massa, ullamcorper in, auctor et, scelerisque sed, est. Ut tempus purus at lorem. Pellentesque pretium lectus id turpis. Morbi leo mi, nonummy eget tristique non, rhoncus non leo. Aliquam ante. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Integer tempor. Suspendisse sagittis ultrices augue. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem.
-      </div>
-
-      <!-- Highlight Box -->
-      <div class="canvas-highlight" contenteditable="true" id="highlightBox" title="Klikněte pro úpravu">
-        <strong>DŮLEŽITÉ:</strong> Zde můžete napsat libovolné zvýrazněné upozornění, termíny, nebo informace pro příjemce.
-      </div>
-
-      <div style="border-top: 1px solid var(--border); margin: 26px 0;"></div>
-
       <!-- DYNAMIC GRID SECTIONS -->
       <div id="gridSectionsContainer"></div>
-
-      <!-- Signoff -->
-      <div class="canvas-signoff" contenteditable="true" id="signoffText" title="Klikněte pro úpravu">
-        V případě dotazů nás neváhejte kontaktovat.<br><br>
-        Děkujeme!<br>
-        <strong>SHM Uhříněves - Kolovraty</strong>
-      </div>
 
       <!-- Footer & Unsubscribe -->
       <div class="canvas-footer">
@@ -950,6 +1048,21 @@
 
     var gridSections = [
       {
+        id: "sec_intro",
+        hasBorder: false,
+        cols: [
+          [
+            { id: "item_greet", type: "text", text: "<b>Ahoj,</b>" },
+            {
+              id: "item_intro",
+              type: "text",
+              text: "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Fusce wisi. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Integer lacinia. In laoreet, magna id viverra tincidunt, sem odio bibendum justo, vel imperdiet sapien wisi sed libero. Duis pulvinar. Donec quis nibh at felis congue commodo. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem."
+            },
+            { id: "item_hl", type: "highlight", text: "<b>DŮLEŽITÉ:</b> Zde můžete napsat libovolné zvýrazněné upozornění, termíny, nebo informace pro příjemce." }
+          ]
+        ]
+      },
+      {
         id: "sec_1",
         hasBorder: true,
         cols: [
@@ -994,6 +1107,19 @@
             }
           ]
         ]
+      },
+      {
+        id: "sec_signoff",
+        hasBorder: false,
+        cols: [
+          [
+            {
+              id: "item_signoff",
+              type: "text",
+              text: "V případě dotazů nás neváhejte kontaktovat.\n\nDěkujeme!\n<b>SHM Uhříněves - Kolovraty</b>"
+            }
+          ]
+        ]
       }
     ];
 
@@ -1012,73 +1138,226 @@
       setupContextMenu();
     });
 
+    // =============================================
+    // UNIVERSAL BACKEND BRIDGE (APPS SCRIPT + WEBHOSTING API)
+    // =============================================
+    var Backend = {
+      getApiUrl: function() {
+        if (typeof CONFIG_API_URL !== "undefined" && CONFIG_API_URL && CONFIG_API_URL.trim() !== "") {
+          return CONFIG_API_URL.trim();
+        }
+        return localStorage.getItem("newsletter_gas_api_url") || "";
+      },
+      setApiUrl: function(url) {
+        if (url) localStorage.setItem("newsletter_gas_api_url", url.trim());
+        else localStorage.removeItem("newsletter_gas_api_url");
+      },
+      getCustomUnsubUrl: function() {
+        var saved = localStorage.getItem("newsletter_custom_unsub_url");
+        if (saved) return saved.trim();
+        // Auto-detect if running on webhosting (not on script.google.com)
+        if (window.location.protocol.startsWith("http") && window.location.hostname.indexOf("google.com") === -1) {
+          var base = window.location.origin + window.location.pathname;
+          return base.substring(0, base.lastIndexOf("/") + 1) + "unsubscribe.html";
+        }
+        return "";
+      },
+      setCustomUnsubUrl: function(url) {
+        if (url) localStorage.setItem("newsletter_custom_unsub_url", url.trim());
+        else localStorage.removeItem("newsletter_custom_unsub_url");
+      },
+      isGoogleAppsScript: function() {
+        return typeof google !== "undefined" && Boolean(google.script && google.script.run);
+      },
+      call: function(action, payload, onSuccess, onError) {
+        // Mode 1: Running inside Google Apps Script Web App iframe (and no manual API URL set)
+        if (this.isGoogleAppsScript() && !this.getApiUrl()) {
+          var runner = google.script.run
+            .withSuccessHandler(function(res) { if (onSuccess) onSuccess(res); })
+            .withFailureHandler(function(err) { if (onError) onError(err); });
+
+          switch (action) {
+            case "verify_password": runner.verifyPassword(payload.password); break;
+            case "get_system_info": runner.getSystemInfo(); break;
+            case "upload_image": runner.uploadImage(payload.base64Data, payload.fileName, payload.mimeType); break;
+            case "get_drive_assets": runner.getDriveAssets(); break;
+            case "send_test_email": runner.sendTestEmail(payload.campaignData, payload.testRecipient); break;
+            case "launch_campaign": runner.launchCampaign(payload.campaignData, payload.options); break;
+            case "run_group2_now": runner.runGroup2Now(); break;
+            case "cancel_scheduled_trigger": runner.cancelScheduledTrigger(); break;
+            case "remove_duplicates": runner.removeDuplicates(); break;
+            case "get_duplicates_log": runner.getDuplicatesLog(payload.limit); break;
+            case "confirm_unsubscribe": runner.confirmUnsubscribe(payload.email); break;
+            default:
+              if (onError) onError("Neznámá akce: " + action);
+          }
+          return;
+        }
+
+        // Mode 2: External Webhosting via HTTP fetch() to Apps Script doPost API
+        var apiUrl = this.getApiUrl();
+        if (!apiUrl) {
+          alert("Chyba konfigurace: V souboru Index.html (na řádku 12) není vložena URL adresa API skriptu (proměnná CONFIG_API_URL). Otevřete soubor v editoru a vložte URL nasazení končící na /exec.");
+          if (onError) onError("Chybí CONFIG_API_URL v Index.html.");
+          return;
+        }
+
+        fetch(apiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: action, payload: payload })
+        })
+        .then(function(res) {
+          return res.json();
+        })
+        .then(function(data) {
+          if (onSuccess) onSuccess(data);
+        })
+        .catch(function(err) {
+          console.error("API Call error:", err);
+          if (onError) onError(err);
+        });
+      }
+    };
+
     function doLogin() {
       var pwd = document.getElementById("adminPasswordInput").value;
-      google.script.run
-        .withSuccessHandler(function(isValid) {
-          if (isValid) {
-            localStorage.setItem("newsletter_admin_pwd", pwd);
-            document.getElementById("loginModal").style.display = "none";
-            loadSystemInfo();
-          } else {
-            document.getElementById("loginError").style.display = "block";
-          }
-        })
-        .withFailureHandler(function(err) { alert("Chyba: " + err); })
-        .verifyPassword(pwd);
+      Backend.call("verify_password", { password: pwd }, function(res) {
+        var isValid = res && (res === true || res.success === true);
+        if (isValid) {
+          localStorage.setItem("newsletter_admin_pwd", pwd);
+          document.getElementById("loginModal").style.display = "none";
+          loadSystemInfo();
+        } else {
+          document.getElementById("loginError").style.display = "block";
+        }
+      }, function(err) {
+        alert("Chyba ověření: " + err);
+      });
     }
 
     function loadSystemInfo() {
-      google.script.run
-        .withSuccessHandler(function(info) {
-          document.getElementById("quotaVal").innerText = info.dailyQuotaRemaining;
-          document.getElementById("g1CountVal").innerText = info.group1Count;
-          document.getElementById("g2CountVal").innerText = info.group2Count;
-          document.getElementById("unsubCountVal").innerText = info.unsubscribedCount;
+      Backend.call("get_system_info", {}, function(info) {
+        if (!info) return;
+        document.getElementById("quotaVal").innerText = info.dailyQuotaRemaining !== undefined ? info.dailyQuotaRemaining : "-";
+        document.getElementById("g1CountVal").innerText = info.group1Count || 0;
+        document.getElementById("g2CountVal").innerText = info.group2Count || 0;
+        document.getElementById("unsubCountVal").innerText = info.unsubscribedCount || 0;
 
-          var banner = document.getElementById("triggerBanner");
-          var bannerTitle = document.getElementById("triggerBannerTitle");
-          var timeText = document.getElementById("triggerTimeText");
-          var btnRunNow = document.getElementById("btnTriggerRunNow");
+        if (info.customUnsubUrl && !Backend.getCustomUnsubUrl()) {
+          Backend.setCustomUnsubUrl(info.customUnsubUrl);
+        }
 
-          if (info.hasPendingGroup2Trigger && info.activeCampaign) {
-            banner.style.display = "flex";
-            var schedTime = info.activeCampaign.scheduledTime ? new Date(info.activeCampaign.scheduledTime).toLocaleString("cs-CZ") : "";
-            
-            if (info.activeCampaign.isDryRun) {
-              banner.style.background = "#f3e8ff";
-              banner.style.borderColor = "#d8b4fe";
-              banner.style.color = "#581c87";
-              bannerTitle.innerText = "🧪 [DRY RUN] Skupina 2 naplánována:";
-              timeText.innerText = schedTime + " (žádné emaily nebyly odeslány příjemcům)";
-              if (btnRunNow) btnRunNow.innerText = "⚡ Dokončit Skupinu 2 hned (Dry Run)";
-            } else if (info.activeCampaign.status && info.activeCampaign.status.indexOf("PAUSED_QUOTA") !== -1) {
-              banner.style.background = "#fff5f5";
-              banner.style.borderColor = "#fed7d7";
-              banner.style.color = "#9b2c2c";
-              bannerTitle.innerText = "⚠️ [POZASTAVENO PRO KVÓTU]";
-              timeText.innerText = "Denní kvóta Google vyčerpána. Automatická kontrola: " + schedTime;
-              if (btnRunNow) btnRunNow.innerText = "🔄 Zkontrolovat kvótu nyní";
-            } else if (info.activeCampaign.status && info.activeCampaign.status.indexOf("PAUSED_TIMEOUT") !== -1) {
-              banner.style.background = "#ebf8ff";
-              banner.style.borderColor = "#bee3f8";
-              banner.style.color = "#2c5282";
-              bannerTitle.innerText = "⏱️ [WATCHDOG PRODLOUŽENÍ]";
-              timeText.innerText = "Pokračování v další dávce: " + schedTime;
-              if (btnRunNow) btnRunNow.innerText = "⚡ Pokračovat hned";
-            } else {
-              banner.style.background = "#fffaf0";
-              banner.style.borderColor = "#feebc8";
-              banner.style.color = "#7b341e";
-              bannerTitle.innerText = "⏱️ Skupina 2 je naplánována:";
-              timeText.innerText = schedTime;
-              if (btnRunNow) btnRunNow.innerText = "⚡ Spustit Skupinu 2 hned";
-            }
+        var banner = document.getElementById("triggerBanner");
+        var bannerTitle = document.getElementById("triggerBannerTitle");
+        var timeText = document.getElementById("triggerTimeText");
+        var btnRunNow = document.getElementById("btnTriggerRunNow");
+
+        if (info.hasPendingGroup2Trigger && info.activeCampaign) {
+          banner.style.display = "flex";
+          var schedTime = info.activeCampaign.scheduledTime ? new Date(info.activeCampaign.scheduledTime).toLocaleString("cs-CZ") : "";
+          
+          if (info.activeCampaign.isDryRun) {
+            banner.style.background = "#f3e8ff";
+            banner.style.borderColor = "#d8b4fe";
+            banner.style.color = "#581c87";
+            bannerTitle.innerText = "🧪 [DRY RUN] Skupina 2 naplánována:";
+            timeText.innerText = schedTime + " (žádné emaily nebyly odeslány příjemcům)";
+            if (btnRunNow) btnRunNow.innerText = "⚡ Dokončit Skupinu 2 hned (Dry Run)";
+          } else if (info.activeCampaign.status && info.activeCampaign.status.indexOf("PAUSED_QUOTA") !== -1) {
+            banner.style.background = "#fff5f5";
+            banner.style.borderColor = "#fed7d7";
+            banner.style.color = "#9b2c2c";
+            bannerTitle.innerText = "⚠️ [POZASTAVENO PRO KVÓTU]";
+            timeText.innerText = "Denní kvóta Google vyčerpána. Automatická kontrola: " + schedTime;
+            if (btnRunNow) btnRunNow.innerText = "🔄 Zkontrolovat kvótu nyní";
+          } else if (info.activeCampaign.status && info.activeCampaign.status.indexOf("PAUSED_TIMEOUT") !== -1) {
+            banner.style.background = "#ebf8ff";
+            banner.style.borderColor = "#bee3f8";
+            banner.style.color = "#2c5282";
+            bannerTitle.innerText = "⏱️ [WATCHDOG PRODLOUŽENÍ]";
+            timeText.innerText = "Pokračování v další dávce: " + schedTime;
+            if (btnRunNow) btnRunNow.innerText = "⚡ Pokračovat hned";
           } else {
-            banner.style.display = "none";
+            banner.style.background = "#fffaf0";
+            banner.style.borderColor = "#feebc8";
+            banner.style.color = "#7b341e";
+            bannerTitle.innerText = "⏱️ Skupina 2 je naplánována:";
+            timeText.innerText = schedTime;
+            if (btnRunNow) btnRunNow.innerText = "⚡ Spustit Skupinu 2 hned";
           }
-        })
-        .getSystemInfo();
+        } else {
+          banner.style.display = "none";
+        }
+      }, function(err) {
+        console.warn("Chyba načítání systémových informací:", err);
+      });
+    }
+
+    function triggerRemoveDuplicates() {
+      if (!confirm("Přejete si spustit kontrolu a vyčištění kontaktů od duplicit?\n\n• Duplicity uvnitř Group 1 i Group 2 budou smazány (ponechán první výskyt).\n• Pokud se e-mail nachází v obou skupinách, zůstane v Group 1 a z Group 2 se smaže.\n\nCo bylo smazáno uvidíte v přehledu a v listu „Log duplicit“.")) {
+        return;
+      }
+      Backend.call("remove_duplicates", {}, function(res) {
+        if (res && res.success) {
+          loadSystemInfo();
+          if (res.totalRemoved === 0) {
+            alert("✅ Žádné duplicity nenalezeny.");
+            return;
+          }
+          var summary =
+            "<strong>Smazáno celkem: " + res.totalRemoved + "</strong><br>" +
+            "• Duplicity uvnitř Group 1: " + res.g1DuplicatesRemoved + "<br>" +
+            "• Duplicity uvnitř Group 2: " + res.g2DuplicatesRemoved + "<br>" +
+            "• Už v Group 1 (smazáno z Group 2): " + res.crossDuplicatesRemoved + "<br>" +
+            "Zůstává: Group 1 = " + res.remainingG1 + ", Group 2 = " + res.remainingG2;
+          showDupLog("🧹 Smazané duplicity", summary, res.removed || []);
+        } else {
+          alert("❌ Chyba: " + (res ? res.error : "Neznámá chyba"));
+        }
+      }, function(err) {
+        alert("Chyba při komunikaci s API: " + err);
+      });
+    }
+
+    function openDupLog() {
+      Backend.call("get_duplicates_log", { limit: 500 }, function(res) {
+        if (res && res.success) {
+          var summary = "Celkem záznamů v logu: <strong>" + res.total + "</strong>" +
+            (res.total > res.entries.length ? " (zobrazeno posledních " + res.entries.length + ")" : "");
+          showDupLog("📜 Log smazaných duplicit", summary, res.entries || []);
+        } else {
+          alert("❌ Chyba: " + (res ? res.error : "Neznámá chyba"));
+        }
+      }, function(err) {
+        alert("Chyba při komunikaci s API: " + err);
+      });
+    }
+
+    function showDupLog(title, summaryHtml, entries) {
+      document.getElementById("dupLogTitle").innerText = title;
+      document.getElementById("dupLogSummary").innerHTML = summaryHtml;
+      var body = document.getElementById("dupLogBody");
+      if (!entries.length) {
+        body.innerHTML = '<tr><td colspan="7" style="padding: 20px; text-align: center; color: var(--text-muted);">Zatím nebylo nic smazáno.</td></tr>';
+      } else {
+        body.innerHTML = entries.map(function(e) {
+          return '<tr style="border-top: 1px solid var(--border);">' +
+            '<td style="padding: 6px 8px; white-space: nowrap;">' + escapeHtml(e.time) + '</td>' +
+            '<td style="padding: 6px 8px;"><strong>' + escapeHtml(e.email) + '</strong></td>' +
+            '<td style="padding: 6px 8px;">' + escapeHtml(e.name) + '</td>' +
+            '<td style="padding: 6px 8px;">' + escapeHtml(e.group) + '</td>' +
+            '<td style="padding: 6px 8px;">' + escapeHtml(e.reason) + '</td>' +
+            '<td style="padding: 6px 8px;">' + escapeHtml(e.row) + '</td>' +
+            '<td style="padding: 6px 8px;">' + escapeHtml(e.keptIn) + '</td>' +
+            '</tr>';
+        }).join("");
+      }
+      document.getElementById("dupLogModal").style.display = "flex";
+    }
+
+    function closeDupLog() {
+      document.getElementById("dupLogModal").style.display = "none";
     }
 
     function setDeviceMode(mode) {
@@ -1201,6 +1480,7 @@
             controls.className = "item-controls";
             controls.innerHTML = [
               '<span class="item-drag-handle" title="Uchopte tento úchyt a přetáhněte">⠿ Přetáhnout</span>',
+              (item.type === "button" ? '<button class="btn btn-sm btn-secondary" onclick="editButtonUrl(\'' + item.id + '\')" title="Změnit URL odkazu tlačítka">🔗 Odkaz</button>' : ''),
               '<button class="btn btn-sm btn-danger" onclick="deleteItem(\'' + sec.id + '\', ' + colIdx + ', ' + itemIdx + ')" title="Smazat">✕</button>'
             ].join('');
             itemDiv.appendChild(controls);
@@ -1280,7 +1560,7 @@
       var wrap = document.createElement("div");
 
       if (item.type === "heading") {
-        wrap.innerHTML = '<h3 contenteditable="true" style="color: var(--primary); margin: 0 0 8px 0; font-size: 19px; font-weight: 700;" id="el_' + item.id + '">' + escapeHtml(item.text) + '</h3>';
+        wrap.innerHTML = '<h3 contenteditable="true" style="color: var(--primary); margin: 0 0 8px 0; font-size: 19px; font-weight: 700;" id="el_' + item.id + '">' + (item.text || "").replace(/\n/g, '<br>') + '</h3>';
       } else if (item.type === "text") {
         wrap.innerHTML = '<div contenteditable="true" style="color: #4a5568; font-size: 15px; line-height: 1.65;" id="el_' + item.id + '">' + (item.text || "").replace(/\n/g, '<br>') + '</div>';
       } else if (item.type === "image") {
@@ -1309,9 +1589,12 @@
       } else if (item.type === "button") {
         wrap.innerHTML = [
           '<div class="canvas-btn-wrapper">',
-          '  <a class="canvas-btn" contenteditable="true" id="btn_' + item.id + '" onclick="editButtonUrl(\'' + item.id + '\', event)">' + escapeHtml(item.text || 'Tlačítko') + '</a>',
-          '</div>'
+          '  <span class="canvas-btn" contenteditable="true" id="btn_' + item.id + '" title="Klikněte a přepište text tlačítka">' + escapeHtml(item.text || 'Tlačítko') + '</span>',
+          '</div>',
+          '<div class="btn-url-hint">🔗 ' + escapeHtml(item.url || "(odkaz není nastaven)") + '</div>'
         ].join('');
+        var btnSpan = wrap.querySelector(".canvas-btn");
+        btnSpan.addEventListener("keydown", function(ev) { if (ev.key === "Enter") ev.preventDefault(); });
       } else if (item.type === "highlight") {
         wrap.innerHTML = '<div contenteditable="true" class="canvas-highlight" id="el_' + item.id + '">' + (item.text || "").replace(/\n/g, '<br>') + '</div>';
       } else if (item.type === "divider") {
@@ -1376,19 +1659,31 @@
       renderGrid();
     }
 
+    // Converts the editable element's HTML (with formatting) into stored text with \n line breaks
+    function editableToText(el) {
+      return el.innerHTML
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<div[^>]*>/gi, "\n")
+        .replace(/<\/div>/gi, "")
+        .replace(/<p[^>]*>/gi, "")
+        .replace(/<\/p>/gi, "\n")
+        .replace(/^\n+/, "")
+        .replace(/\n+$/, "");
+    }
+
     function saveCurrentContentFromDOM() {
       gridSections.forEach(function(sec) {
         sec.cols.forEach(function(col) {
           col.forEach(function(item) {
             if (item.type === "heading" || item.type === "text" || item.type === "highlight") {
               var el = document.getElementById("el_" + item.id);
-              if (el) item.text = el.innerHTML.replace(/<br\s*[\/]?>/gi, "\n").replace(/<div>/gi, "\n").replace(/<\/div>/gi, "").replace(/<p>/gi, "").replace(/<\/p>/gi, "\n");
+              if (el) item.text = editableToText(el);
             } else if (item.type === "image") {
               var cap = document.getElementById("cap_" + item.id);
               if (cap) item.caption = cap.innerText.trim();
             } else if (item.type === "button") {
               var btn = document.getElementById("btn_" + item.id);
-              if (btn) item.text = btn.innerText;
+              if (btn) item.text = btn.innerText.replace(/\n/g, " ").trim();
             }
           });
         });
@@ -1500,39 +1795,30 @@
         
         // Resize and compress client-side to max 1200px width/height and ~200KB JPEG
         resizeImageClientSide(rawData, 1200, 0.85, function(compressedData) {
-          // Check if running in Google Apps Script Web App environment
-          if (typeof google === "undefined" || !google.script || !google.script.run) {
-            progress.style.display = "none";
-            applyImageUrl(activeModalItemId, compressedData);
-            closeImagePicker();
-            return;
-          }
-
-          progress.innerHTML = '<span class="spinner" style="border-top-color: var(--primary); border-color: rgba(41,141,192,0.3);"></span> Nahrávám na Váš Google Disk...';
+          progress.innerHTML = '<span class="spinner" style="border-top-color: var(--primary); border-color: rgba(41,141,192,0.3);"></span> Nahrávám na Google Disk...';
 
           var safeFileName = (file.name || "newsletter_image.jpg").replace(/\.[^/.]+$/, "") + ".jpg";
 
-          google.script.run
-            .withSuccessHandler(function(res) {
-              progress.style.display = "none";
-              if (res && res.success && res.url) {
-                applyImageUrl(activeModalItemId, res.url);
-                closeImagePicker();
-              } else {
-                console.warn("Drive upload warning:", res);
-                // Fallback to compressed base64 so user is never blocked!
-                applyImageUrl(activeModalItemId, compressedData);
-                closeImagePicker();
-              }
-            })
-            .withFailureHandler(function(err) {
-              progress.style.display = "none";
-              console.warn("GAS connection error:", err);
-              // Fallback to compressed base64 so user is never blocked!
+          Backend.call("upload_image", {
+            base64Data: compressedData,
+            fileName: safeFileName,
+            mimeType: "image/jpeg"
+          }, function(res) {
+            progress.style.display = "none";
+            if (res && res.success && res.url) {
+              applyImageUrl(activeModalItemId, res.url);
+              closeImagePicker();
+            } else {
+              console.warn("Drive upload fallback:", res);
               applyImageUrl(activeModalItemId, compressedData);
               closeImagePicker();
-            })
-            .uploadImage(compressedData, safeFileName, "image/jpeg");
+            }
+          }, function(err) {
+            progress.style.display = "none";
+            console.warn("Upload fallback on error:", err);
+            applyImageUrl(activeModalItemId, compressedData);
+            closeImagePicker();
+          });
         });
       };
       reader.readAsDataURL(file);
@@ -1545,32 +1831,29 @@
       grid.innerHTML = "";
       spinner.style.display = "block";
 
-      google.script.run
-        .withSuccessHandler(function(res) {
-          spinner.style.display = "none";
-          if (res && res.success && res.images && res.images.length > 0) {
-            res.images.forEach(function(img) {
-              var card = document.createElement("div");
-              card.className = "drive-thumb-card";
-              card.innerHTML = [
-                '<img class="drive-thumb-img" src="' + img.thumbnailUrl + '">',
-                '<div class="drive-thumb-name" title="' + escapeHtml(img.name) + '">' + escapeHtml(img.name) + '</div>'
-              ].join('');
-              card.onclick = function() {
-                applyImageUrl(activeModalItemId, img.url);
-                closeImagePicker();
-              };
-              grid.appendChild(card);
-            });
-          } else {
-            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px;">V Google Disku zatím nejsou žádné obrázky. Nahrajte první ze záložky "Z počítače".</div>';
-          }
-        })
-        .withFailureHandler(function(err) {
-          spinner.style.display = "none";
-          grid.innerHTML = '<div style="color: var(--danger); font-size: 12px;">Chyba načítání z Google Disku: ' + err + '</div>';
-        })
-        .getDriveAssets();
+      Backend.call("get_drive_assets", {}, function(res) {
+        spinner.style.display = "none";
+        if (res && res.success && res.images && res.images.length > 0) {
+          res.images.forEach(function(img) {
+            var card = document.createElement("div");
+            card.className = "drive-thumb-card";
+            card.innerHTML = [
+              '<img class="drive-thumb-img" src="' + img.thumbnailUrl + '">',
+              '<div class="drive-thumb-name" title="' + escapeHtml(img.name) + '">' + escapeHtml(img.name) + '</div>'
+            ].join('');
+            card.onclick = function() {
+              applyImageUrl(activeModalItemId, img.url);
+              closeImagePicker();
+            };
+            grid.appendChild(card);
+          });
+        } else {
+          grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px;">V Google Disku zatím nejsou žádné obrázky. Nahrajte první ze záložky "Z počítače".</div>';
+        }
+      }, function(err) {
+        spinner.style.display = "none";
+        grid.innerHTML = '<div style="color: var(--danger); font-size: 12px;">Chyba načítání z Google Disku: ' + err + '</div>';
+      });
     }
 
     // 3. URL Handler
@@ -1719,11 +2002,13 @@
         newCols[0].push({ id: "item_" + Date.now() + "_1", type: "text", text: "Nová sekce. Začněte psát nebo klikněte pravým pro přidání prvků." });
       }
 
-      gridSections.push({
-        id: "sec_" + Date.now(),
-        hasBorder: true,
-        cols: newCols
-      });
+      var newSec = { id: "sec_" + Date.now(), hasBorder: true, cols: newCols };
+      var ctxIdx = -1;
+      for (var q = 0; q < gridSections.length; q++) {
+        if (gridSections[q].id === contextTarget.sectionId) ctxIdx = q;
+      }
+      if (ctxIdx >= 0) gridSections.splice(ctxIdx + 1, 0, newSec);
+      else gridSections.push(newSec);
       renderGrid();
     }
 
@@ -1757,13 +2042,13 @@
       }
     }
 
-    function editButtonUrl(itemId, e) {
-      e.preventDefault();
+    function editButtonUrl(itemId) {
       saveCurrentContentFromDOM();
       findItemById(itemId, function(btnItem) {
         var newUrl = prompt("Zadejte URL adresu pro tlačítko:", btnItem.url || "https://example.com");
-        if (newUrl) btnItem.url = newUrl.trim();
+        if (newUrl !== null && newUrl.trim() !== "") btnItem.url = newUrl.trim();
       });
+      renderGrid();
     }
 
     function collectCampaignData() {
@@ -1772,11 +2057,8 @@
         subject: document.getElementById("subjectInput").value || "SHM Uhříněves - Kolovraty newsletter",
         senderName: document.getElementById("senderNameInput").value || "SHM Uhříněves - Kolovraty",
         headerTitle: document.getElementById("headerTitle").innerText,
-        greeting: document.getElementById("greetingText").innerText,
-        introText: document.getElementById("introText").innerText,
-        highlightBoxText: document.getElementById("highlightBox").innerText,
         sections: gridSections,
-        signoff: document.getElementById("signoffText").innerText
+        customUnsubUrl: Backend.getCustomUnsubUrl()
       };
     }
 
@@ -1791,19 +2073,19 @@
       btn.disabled = true;
 
       var data = collectCampaignData();
-      google.script.run
-        .withSuccessHandler(function(res) {
-          btn.innerHTML = '🧪 Test';
-          btn.disabled = false;
-          if (res.success) alert("✅ Testovací email byl odeslán na " + recipient);
-          else alert("❌ Chyba: " + res.error);
-        })
-        .withFailureHandler(function(err) {
-          btn.innerHTML = '🧪 Test';
-          btn.disabled = false;
-          alert("Chyba: " + err);
-        })
-        .sendTestEmail(data, recipient);
+      Backend.call("send_test_email", {
+        campaignData: data,
+        testRecipient: recipient
+      }, function(res) {
+        btn.innerHTML = '🧪 Test';
+        btn.disabled = false;
+        if (res && res.success) alert("✅ Testovací email byl odeslán na " + recipient);
+        else alert("❌ Chyba: " + (res ? res.error : "Neznámá"));
+      }, function(err) {
+        btn.innerHTML = '🧪 Test';
+        btn.disabled = false;
+        alert("Chyba: " + err);
+      });
     }
 
     function startDryRun() {
@@ -1823,26 +2105,26 @@
       btn.innerHTML = '<span class="spinner"></span> Běží Dry Run...';
       btn.disabled = true;
 
-      google.script.run
-        .withSuccessHandler(function(res) {
-          btn.innerHTML = '🧪 Spustit Dry Run';
-          btn.disabled = false;
-          if (res.success) {
-            alert("🧪 DRY RUN zahájen!\n\n" +
-                  "Zkontrolováno Skupina 1: " + res.sentGroup1Count + " kontaktů\n" +
-                  "Skupina 2 naplánována na: " + res.scheduledTimeFormatted + "\n\n" +
-                  "(Můžete sledovat fialové označení v tabulce nebo v banneru nahoře)");
-            loadSystemInfo();
-          } else {
-            alert("❌ Chyba: " + res.error);
-          }
-        })
-        .withFailureHandler(function(err) {
-          btn.innerHTML = '🧪 Spustit Dry Run';
-          btn.disabled = false;
-          alert("Chyba při spuštění Dry Run: " + err);
-        })
-        .launchCampaign(data, { isDryRun: true, sendSamplePreview: true });
+      Backend.call("launch_campaign", {
+        campaignData: data,
+        options: { isDryRun: true, sendSamplePreview: true }
+      }, function(res) {
+        btn.innerHTML = '🧪 Dry Run';
+        btn.disabled = false;
+        if (res && res.success) {
+          alert("🧪 DRY RUN zahájen!\n\n" +
+                "Zkontrolováno Skupina 1: " + res.sentGroup1Count + " kontaktů\n" +
+                "Skupina 2 naplánována na: " + res.scheduledTimeFormatted + "\n\n" +
+                "(Můžete sledovat fialové označení v tabulce nebo v banneru nahoře)");
+          loadSystemInfo();
+        } else {
+          alert("❌ Chyba: " + (res ? res.error : "Neznámá"));
+        }
+      }, function(err) {
+        btn.innerHTML = '🧪 Dry Run';
+        btn.disabled = false;
+        alert("Chyba při spuštění Dry Run: " + err);
+      });
     }
 
     function startLiveCampaign() {
@@ -1876,46 +2158,183 @@
       btn.innerHTML = '<span class="spinner"></span> Odesílám...';
       btn.disabled = true;
 
-      google.script.run
-        .withSuccessHandler(function(res) {
-          btn.innerHTML = '🚀 Odeslat ostrou kampaň';
-          btn.disabled = false;
-          if (res.success) {
-            alert("🎉 Ostrá kampaň úspěšně zahájena!\n\n" +
-                  "Odesláno Skupině 1: " + res.sentGroup1Count + " emailů\n" +
-                  "Skupina 2 naplánována na: " + res.scheduledTimeFormatted);
-            loadSystemInfo();
-          } else {
-            alert("❌ Chyba: " + res.error);
-          }
-        })
-        .withFailureHandler(function(err) {
-          btn.innerHTML = '🚀 Odeslat ostrou kampaň';
-          btn.disabled = false;
-          alert("Chyba při spuštění: " + err);
-        })
-        .launchCampaign(data, { isDryRun: false, delayHours: delayHours });
+      Backend.call("launch_campaign", {
+        campaignData: data,
+        options: { isDryRun: false, delayHours: delayHours }
+      }, function(res) {
+        btn.innerHTML = '🚀 Odeslat kampaň';
+        btn.disabled = false;
+        if (res && res.success) {
+          alert("🎉 Ostrá kampaň úspěšně zahájena!\n\n" +
+                "Odesláno Skupině 1: " + res.sentGroup1Count + " emailů\n" +
+                "Skupina 2 naplánována na: " + res.scheduledTimeFormatted);
+          loadSystemInfo();
+        } else {
+          alert("❌ Chyba: " + (res ? res.error : "Neznámá"));
+        }
+      }, function(err) {
+        btn.innerHTML = '🚀 Odeslat kampaň';
+        btn.disabled = false;
+        alert("Chyba při spuštění: " + err);
+      });
     }
 
     function runGroup2Now() {
       if (!confirm("Chcete nyní okamžitě spustit Skupinu 2 a vyřídit naplánovaný trigger?")) return;
-      google.script.run
-        .withSuccessHandler(function() {
-          alert("✅ Skupina 2 byla spuštěna!");
-          loadSystemInfo();
-        })
-        .runGroup2Now();
+      Backend.call("run_group2_now", {}, function() {
+        alert("✅ Skupina 2 byla spuštěna!");
+        loadSystemInfo();
+      }, function(err) {
+        alert("Chyba: " + err);
+      });
     }
 
     function cancelPendingTrigger() {
       if (!confirm("Chcete zrušit naplánované odeslání Skupiny 2?")) return;
-      google.script.run
-        .withSuccessHandler(function() {
-          alert("Naplánování bylo zrušeno.");
-          loadSystemInfo();
-        })
-        .cancelScheduledTrigger();
+      Backend.call("cancel_scheduled_trigger", {}, function() {
+        alert("Naplánování bylo zrušeno.");
+        loadSystemInfo();
+      }, function(err) {
+        alert("Chyba: " + err);
+      });
     }
+
+    // =============================================
+    // TEXT FORMATTING TOOLBAR
+    // =============================================
+    var fmtRange = null;
+    var fmtEditable = null;
+    var PRIMARY = "#298DC0";
+
+    function closestRichEditable(node) {
+      while (node && node !== document) {
+        if (node.nodeType === 1 && node.getAttribute && node.getAttribute("contenteditable") === "true" &&
+            node.id && node.id.indexOf("el_") === 0) return node;
+        node = node.parentNode;
+      }
+      return null;
+    }
+
+    document.addEventListener("selectionchange", function() {
+      var sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      var r = sel.getRangeAt(0);
+      var ed = closestRichEditable(r.commonAncestorContainer);
+      if (ed) { fmtRange = r.cloneRange(); fmtEditable = ed; }
+    });
+
+    function fmtRestore() {
+      if (!fmtRange || !fmtEditable || !document.body.contains(fmtEditable)) return false;
+      fmtEditable.focus();
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(fmtRange);
+      return true;
+    }
+
+    function fmtRemember() {
+      var sel = window.getSelection();
+      if (sel && sel.rangeCount) fmtRange = sel.getRangeAt(0).cloneRange();
+    }
+
+    function fmtHasSelection() {
+      return fmtRange && !fmtRange.collapsed;
+    }
+
+    function fmtExec(cmd, value, useCss) {
+      if (!fmtRestore()) return;
+      document.execCommand("styleWithCSS", false, !!useCss);
+      document.execCommand(cmd, false, value || null);
+      fmtRemember();
+    }
+
+    function fmtApplySize(px) {
+      if (!px || !fmtHasSelection() || !fmtRestore()) return;
+      document.execCommand("styleWithCSS", false, false);
+      document.execCommand("fontSize", false, "7");
+      var fonts = fmtEditable.querySelectorAll('font[size="7"]');
+      var first = null, last = null;
+      Array.prototype.forEach.call(fonts, function(f) {
+        var span = document.createElement("span");
+        span.style.fontSize = px + "px";
+        while (f.firstChild) span.appendChild(f.firstChild);
+        // inner elements must not override the new size
+        Array.prototype.forEach.call(span.querySelectorAll("[style]"), function(inner) {
+          inner.style.fontSize = "";
+          if (!inner.getAttribute("style")) inner.removeAttribute("style");
+        });
+        f.parentNode.replaceChild(span, f);
+        if (!first) first = span;
+        last = span;
+      });
+      if (first && last) {
+        var r = document.createRange();
+        r.setStartBefore(first);
+        r.setEndAfter(last);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(r);
+        fmtRange = r.cloneRange();
+      }
+    }
+
+    function fmtApplyLink() {
+      if (!fmtHasSelection()) { alert("Nejdřív označte text, do kterého chcete vložit odkaz."); return; }
+      var url = prompt("Zadejte URL odkazu:", "https://");
+      if (!url || url.trim() === "" || url.trim() === "https://") return;
+      url = url.trim();
+      if (!/^(https?:\/\/|mailto:|tel:)/i.test(url)) {
+        url = (url.indexOf("@") !== -1 && url.indexOf("/") === -1) ? "mailto:" + url : "https://" + url;
+      }
+      if (!fmtRestore()) return;
+      document.execCommand("createLink", false, url);
+      Array.prototype.forEach.call(fmtEditable.querySelectorAll("a"), function(a) {
+        a.setAttribute("target", "_blank");
+        if (!a.style.color) a.style.color = PRIMARY;
+        a.style.textDecoration = "underline";
+      });
+      fmtRemember();
+    }
+
+    // Toolbar wiring: mousedown must not steal focus/selection from the text
+    window.addEventListener("DOMContentLoaded", function() {
+      function bind(id, fn) {
+        var el = document.getElementById(id);
+        el.addEventListener("mousedown", function(e) { e.preventDefault(); });
+        el.addEventListener("click", fn);
+      }
+      bind("fmtBold", function() { fmtExec("bold", null, false); });
+      bind("fmtItalic", function() { fmtExec("italic", null, false); });
+      bind("fmtUnderline", function() { fmtExec("underline", null, false); });
+      bind("fmtStrike", function() { fmtExec("strikeThrough", null, false); });
+      bind("fmtLink", fmtApplyLink);
+      bind("fmtUnlink", function() { fmtExec("unlink", null, false); });
+      bind("fmtClear", function() {
+        if (!fmtRestore()) return;
+        document.execCommand("removeFormat", false, null);
+        document.execCommand("unlink", false, null);
+        fmtRemember();
+      });
+      document.getElementById("fmtSize").addEventListener("change", function(e) {
+        var v = e.target.value;
+        fmtApplySize(v);
+        e.target.value = "";
+      });
+      document.getElementById("fmtColor").addEventListener("input", function(e) {
+        if (!fmtHasSelection()) return;
+        fmtExec("foreColor", e.target.value, true);
+      });
+
+      // Paste as plain text so the email HTML stays clean
+      document.getElementById("emailCanvas").addEventListener("paste", function(e) {
+        var t = e.target;
+        if (t && t.closest && t.closest('[contenteditable="true"]')) {
+          e.preventDefault();
+          var text = (e.clipboardData || window.clipboardData).getData("text/plain");
+          document.execCommand("insertText", false, text);
+        }
+      });
+    });
 
     function escapeHtml(text) {
       if (!text) return "";

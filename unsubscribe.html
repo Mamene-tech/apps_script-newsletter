@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Odhlášení z odběru newsletteru</title>
+
+  <!-- ======================================================== -->
+  <!-- GOOGLE APPS SCRIPT API ODKAZ (NASAZENÍ /exec)           -->
+  <!-- Sem do uvozovek vložte URL Vašeho nasazení z Apps Script: -->
+  <!-- ======================================================== -->
+  <script>
+    var CONFIG_API_URL = ""; // Např: "https://script.google.com/macros/s/AKfycb.../exec"
+  </script>
+  <style>
+    :root {
+      --primary: #298DC0;
+      --primary-hover: #21739c;
+      --danger: #e53e3e;
+      --danger-hover: #c53030;
+      --text: #2d3748;
+      --text-muted: #718096;
+      --border: #e2e8f0;
+      --bg: #f7fafc;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      margin: 0;
+      padding: 40px 15px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 85vh;
+      color: var(--text);
+    }
+
+    .card {
+      background: #ffffff;
+      max-width: 500px;
+      width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      text-align: center;
+    }
+
+    .header {
+      background-color: var(--primary);
+      padding: 24px;
+      color: #ffffff;
+    }
+    .header h2 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: -0.2px;
+    }
+
+    .body {
+      padding: 32px 24px;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .email-badge {
+      display: inline-block;
+      background: #edf2f7;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-weight: 700;
+      color: #2d3748;
+      font-size: 15px;
+      margin: 14px 0 22px 0;
+      word-break: break-all;
+      border: 1px solid #cbd5e0;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      text-decoration: none;
+      width: 100%;
+      max-width: 280px;
+    }
+    .btn-danger {
+      background: var(--danger);
+      color: #ffffff;
+    }
+    .btn-danger:hover {
+      background: var(--danger-hover);
+    }
+
+    .spinner {
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top: 3px solid #ffffff;
+      width: 15px;
+      height: 15px;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    .note {
+      color: #a0aec0;
+      font-size: 12px;
+      margin-top: 24px;
+      line-height: 1.5;
+    }
+
+    .input-field {
+      width: 100%;
+      max-width: 320px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 14px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="header">
+      <h2>SHM Uhříněves - Kolovraty</h2>
+    </div>
+
+    <!-- STEP 1: Confirmation Question -->
+    <div class="body" id="stepConfirm">
+      <h3 style="margin-top: 0; color: #2d3748; font-size: 18px;">Potvrzení odhlášení z newsletteru</h3>
+      <p style="color: var(--text-muted); margin-bottom: 5px;">
+        Opravdu si přejete odhlásit následující emailovou adresu ze zasílání newsletteru?
+      </p>
+
+      <div id="emailDisplay" class="email-badge">Načítám...</div>
+      
+      <div id="manualEmailWrap" style="display: none;">
+        <input type="email" id="manualEmailInput" class="input-field" placeholder="vas-email@domena.cz">
+      </div>
+
+      <div>
+        <button class="btn btn-danger" id="btnConfirm" onclick="performUnsubscribe()">
+          Ano, odhlásit z odběru
+        </button>
+      </div>
+
+      <p class="note">
+        Dvoukrokové ověření zabraňuje nechtěnému odhlášení automatickými antivirovými filtry.
+      </p>
+    </div>
+
+    <!-- STEP 2: Success Confirmation -->
+    <div class="body" id="stepSuccess" style="display: none;">
+      <div style="font-size: 46px; margin-bottom: 10px;">✅</div>
+      <h3 style="color: #2d3748; margin-top: 0; font-size: 20px;">Byli jste úspěšně odhlášeni</h3>
+      <p style="color: var(--text-muted);">
+        Emailová adresa byla trvale vyřazena a v databázi označena stavem <strong>ODHLÁŠENO</strong>:
+      </p>
+      <div id="confirmedEmailBadge" class="email-badge"></div>
+      <p style="color: var(--text-muted); font-size: 14px; margin-top: 20px;">
+        Z této adresy již neobdržíte žádné další zprávy. Tuto stránku můžete nyní zavřít.
+      </p>
+    </div>
+
+    <!-- STEP 3: Error State -->
+    <div class="body" id="stepError" style="display: none;">
+      <div style="font-size: 42px; margin-bottom: 10px;">⚠️</div>
+      <h3 style="color: var(--danger); margin-top: 0;">Došlo k chybě</h3>
+      <p id="errorText" style="color: var(--text-muted);"></p>
+      <button class="btn btn-danger" style="margin-top: 15px;" onclick="location.reload()">Zkusit znovu</button>
+    </div>
+  </div>
+
+  <script>
+    function getApiUrl() {
+      // 1. Z proměnné v hlavičce souboru
+      if (typeof CONFIG_API_URL !== "undefined" && CONFIG_API_URL && CONFIG_API_URL.trim() !== "") {
+        return CONFIG_API_URL.trim();
+      }
+      // 2. Z parametru url ?api=... (předaného automaticky z odkazu v newsletteru)
+      var urlParamApi = new URLSearchParams(window.location.search).get("api");
+      if (urlParamApi) return urlParamApi;
+      return "";
+    }
+
+    var recipientEmail = "";
+
+    window.addEventListener("DOMContentLoaded", function() {
+      var params = new URLSearchParams(window.location.search);
+      var emailParam = params.get("email");
+
+      if (emailParam && emailParam.trim() !== "") {
+        recipientEmail = emailParam.trim();
+        document.getElementById("emailDisplay").innerText = recipientEmail;
+      } else {
+        document.getElementById("emailDisplay").style.display = "none";
+        document.getElementById("manualEmailWrap").style.display = "block";
+      }
+    });
+
+    function performUnsubscribe() {
+      var emailToUnsub = recipientEmail;
+      if (!emailToUnsub) {
+        var input = document.getElementById("manualEmailInput");
+        if (input && input.value && input.value.indexOf("@") !== -1) {
+          emailToUnsub = input.value.trim();
+        } else {
+          alert("Zadejte prosím platnou emailovou adresu k odhlášení.");
+          return;
+        }
+      }
+
+      var apiUrl = getApiUrl();
+      if (!apiUrl) {
+        showError("Chyba konfigurace: V souboru unsubscribe.html (na řádku 12) není vyplněna URL adresa API skriptu (proměnná CONFIG_API_URL). Vložte ji přímo do kódu.");
+        return;
+      }
+
+      var btn = document.getElementById("btnConfirm");
+      btn.innerHTML = '<span class="spinner"></span> Zpracovávám...';
+      btn.disabled = true;
+
+      // Odeslání požadavku na Google Apps Script doPost API
+      fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          action: "confirm_unsubscribe",
+          payload: { email: emailToUnsub }
+        })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(result) {
+        if (result && result.success) {
+          document.getElementById("stepConfirm").style.display = "none";
+          document.getElementById("confirmedEmailBadge").innerText = emailToUnsub;
+          document.getElementById("stepSuccess").style.display = "block";
+        } else {
+          showError(result ? result.error : "Neznámá chyba při zápisu odhlášení.");
+        }
+      })
+      .catch(function(err) {
+        showError("Chyba spojení s backendem: " + err);
+      });
+    }
+
+    function showError(msg) {
+      document.getElementById("stepConfirm").style.display = "none";
+      document.getElementById("errorText").innerText = msg;
+      document.getElementById("stepError").style.display = "block";
+    }
+  </script>
+</body>
+</html>

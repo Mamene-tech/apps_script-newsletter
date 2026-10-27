@@ -4,6 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Odhlášení z odběru</title>
+
+  <!-- ======================================================== -->
+  <!-- GOOGLE APPS SCRIPT API ODKAZ (NASAZENÍ /exec)           -->
+  <!-- Sem do uvozovek vložte URL Vašeho nasazení z Apps Script: -->
+  <!-- ======================================================== -->
+  <script>
+    var CONFIG_API_URL = "https://script.google.com/macros/s/AKfycbwjw4ETJQ1sBBUKeUpLyItydoc-MmZTdIrY3EhkYCx7EbFohyWAU7F5rNidkbL5WY58eg/exec"; // Např: "https://script.google.com/macros/s/AKfycb.../exec"
+  </script>
+
   <style>
     :root {
       --primary: #298DC0;
@@ -59,10 +68,10 @@
       background: #edf2f7;
       padding: 8px 16px;
       border-radius: 6px;
-      font-weight: 700;
+      font-weight: 600;
       color: #2d3748;
-      font-size: 16px;
-      margin: 15px 0 24px 0;
+      font-size: 15px;
+      margin: 10px 0 20px 0;
       word-break: break-all;
     }
 
@@ -70,14 +79,13 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
       padding: 12px 24px;
       border-radius: 6px;
       font-size: 15px;
-      font-weight: 700;
+      font-weight: 600;
       cursor: pointer;
       border: none;
-      transition: all 0.2s;
+      transition: background-color 0.2s;
       text-decoration: none;
     }
     .btn-danger {
@@ -86,14 +94,6 @@
     }
     .btn-danger:hover {
       background: var(--danger-hover);
-    }
-    .btn-secondary {
-      background: #edf2f7;
-      color: var(--text);
-      margin-left: 10px;
-    }
-    .btn-secondary:hover {
-      background: #e2e8f0;
     }
 
     .spinner {
@@ -104,15 +104,28 @@
       height: 14px;
       animation: spin 0.8s linear infinite;
       display: inline-block;
+      margin-right: 8px;
     }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    .input-field {
+      width: 100%;
+      max-width: 320px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 14px;
+      text-align: center;
+      box-sizing: border-box;
+    }
   </style>
 </head>
 <body>
 
   <div class="card">
     <div class="header">
-      <h2>Newsletter</h2>
+      <h2>SHM Uhříněves - Kolovraty</h2>
     </div>
 
     <!-- STEP 1: Confirmation Question (Anti-Bot Protection) -->
@@ -122,7 +135,11 @@
         Opravdu si přejete odhlásit následující emailovou adresu ze zasílání newsletteru?
       </p>
 
-      <div class="email-badge"><?= email ?></div>
+      <div class="email-badge" id="emailDisplay">Načítám...</div>
+
+      <div id="manualEmailWrap" style="display: none;">
+        <input type="email" id="manualEmailInput" class="input-field" placeholder="vas-email@domena.cz">
+      </div>
 
       <div style="margin-top: 10px;">
         <button class="btn btn-danger" id="btnConfirm" onclick="performUnsubscribe()">
@@ -142,7 +159,7 @@
       <p>
         Váš email byl úspěšně vyřazen ze seznamu příjemců a v databázi označen stavem <strong>ODHLÁŠENO</strong>:
       </p>
-      <div class="email-badge"><?= email ?></div>
+      <div class="email-badge" id="confirmedEmailBadge"></div>
       <p style="color: var(--text-muted); font-size: 14px;">
         Již od nás nebudete dostávat žádné další zprávy. Tuto stránku můžete nyní bezpečně zavřít.
       </p>
@@ -151,36 +168,111 @@
   </div>
 
   <script>
-    var recipientEmail = "<?= email ?>";
+    function getRecipientEmail() {
+      var urlParams = new URLSearchParams(window.location.search);
+      var fromUrl = urlParams.get("email");
+      if (fromUrl && fromUrl.trim() !== "") return fromUrl.trim();
+      try {
+        var templ = "<?= typeof email !== 'undefined' ? email : '' ?>";
+        if (templ && templ.indexOf("<%") === -1) return templ.trim();
+      } catch (e) {}
+      return "";
+    }
+
+    var recipientEmail = "";
+
+    window.addEventListener("DOMContentLoaded", function() {
+      recipientEmail = getRecipientEmail();
+      var badge = document.getElementById("emailDisplay");
+      var inputWrap = document.getElementById("manualEmailWrap");
+      if (recipientEmail) {
+        if (badge) badge.innerText = recipientEmail;
+      } else {
+        if (badge) badge.style.display = "none";
+        if (inputWrap) inputWrap.style.display = "block";
+      }
+    });
+
+    function getApiUrl() {
+      if (typeof CONFIG_API_URL !== "undefined" && CONFIG_API_URL && CONFIG_API_URL.trim() !== "") {
+        return CONFIG_API_URL.trim();
+      }
+      var urlParamApi = new URLSearchParams(window.location.search).get("api");
+      if (urlParamApi) return urlParamApi;
+      return "";
+    }
 
     function performUnsubscribe() {
-      if (!recipientEmail) {
-        alert("Chyba: Chybí emailová adresa.");
-        return;
+      var emailToUnsub = recipientEmail;
+      if (!emailToUnsub) {
+        var input = document.getElementById("manualEmailInput");
+        if (input && input.value && input.value.indexOf("@") !== -1) {
+          emailToUnsub = input.value.trim();
+        } else {
+          alert("Zadejte prosím platnou emailovou adresu k odhlášení.");
+          return;
+        }
       }
 
       var btn = document.getElementById("btnConfirm");
       btn.innerHTML = '<span class="spinner"></span> Odhlašuji...';
       btn.disabled = true;
 
-      // Call Google Apps Script server function
-      google.script.run
-        .withSuccessHandler(function(res) {
-          if (res && res.success) {
-            document.getElementById("stepConfirm").style.display = "none";
-            document.getElementById("stepSuccess").style.display = "block";
-          } else {
-            btn.innerHTML = 'Ano, odhlásit z odběru';
-            btn.disabled = false;
-            alert("Chyba: " + (res ? res.error : "Neznámá chyba"));
-          }
+      // 1. Pokud běží přímo uvnitř Google Apps Script Web Appu
+      if (typeof google !== "undefined" && google.script && google.script.run && !CONFIG_API_URL) {
+        google.script.run
+          .withSuccessHandler(function(res) {
+            handleSuccess(emailToUnsub, res);
+          })
+          .withFailureHandler(function(err) {
+            handleError(btn, err);
+          })
+          .confirmUnsubscribe(emailToUnsub);
+        return;
+      }
+
+      // 2. Pokud běží na Vašem webhostingu (fetch na doPost REST API)
+      var apiUrl = getApiUrl();
+      if (!apiUrl) {
+        handleError(btn, "Chyba konfigurace: V souboru UnsubPage.html (na řádku 13) není vložena URL adresa API skriptu (proměnná CONFIG_API_URL).");
+        return;
+      }
+
+      fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          action: "confirm_unsubscribe",
+          payload: { email: emailToUnsub }
         })
-        .withFailureHandler(function(err) {
-          btn.innerHTML = 'Ano, odhlásit z odběru';
-          btn.disabled = false;
-          alert("Chyba spojení: " + err);
-        })
-        .confirmUnsubscribe(recipientEmail);
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(res) {
+        handleSuccess(emailToUnsub, res);
+      })
+      .catch(function(err) {
+        handleError(btn, err);
+      });
+    }
+
+    function handleSuccess(email, res) {
+      if (res && res.success) {
+        document.getElementById("stepConfirm").style.display = "none";
+        var badgeSuccess = document.getElementById("confirmedEmailBadge");
+        if (badgeSuccess) badgeSuccess.innerText = email;
+        document.getElementById("stepSuccess").style.display = "block";
+      } else {
+        var btn = document.getElementById("btnConfirm");
+        btn.innerHTML = 'Ano, odhlásit z odběru';
+        btn.disabled = false;
+        alert("Chyba při odhlášení: " + (res ? res.error : "Neznámá chyba"));
+      }
+    }
+
+    function handleError(btn, err) {
+      btn.innerHTML = 'Ano, odhlásit z odběru';
+      btn.disabled = false;
+      alert("Chyba: " + err);
     }
   </script>
 </body>
